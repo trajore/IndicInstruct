@@ -8,6 +8,7 @@ import os
 import json
 import random
 import datasets
+from open_instruct.utils import InitializationScheme
 import torch
 from functools import partial
 from accelerate import Accelerator
@@ -273,6 +274,22 @@ def parse_args():
         type=str,
         default=None,
         help="The components to freeze. If not specified, nothing will be frozen. Possible values can be embed_tokens, layers, layers.N (N=0 to 31), self_attn, (q/k/v)_proj, rotary_emb, mlp, gate_proj, up_proj, down_proj, lm_head, norm, input_layernorm, post_attention_layernorm.",
+    )
+    parser.add_argument(
+        "--init_scheme",
+        type=str,
+        default="normal",
+        help="Specify which initialization scheme to use for models trained from scratched",
+        choices=[
+            "normal",
+            "scaled_normal",
+            "xavier_uniform",
+            "xavier_normal",
+            "wang_init",
+            "small_init",
+            "small_and_wang_init",
+            "scaled_biderman",
+        ],
     )
     args = parser.parse_args()
 
@@ -544,8 +561,18 @@ def main():
     else:
         logger.info("Training new model from scratch")
         model = AutoModelForCausalLM.from_config(config)
+        config.init_scheme = args.init_scheme
+        initialize_model_weights = InitializationScheme(config)
+        initialize_model_weights._init_weights(model)
+        logger.info("Total parameters: {}".format(model.num_parameters()))
 
-    
+    if args.components_to_freeze is not None:
+        for component in args.components_to_freeze:
+            for model_component, parameter in model.named_parameters():
+                if component in model_component:
+                    parameter.requires_grad = False
+                    print("Freezing {}".format(model_component))
+
     # no default pad token for llama!
     # here we add all special tokens again, because the default ones are not in the special_tokens_map
     if args.skip_special_tokens:
