@@ -5,6 +5,7 @@ import argparse
 import logging
 import math
 import os
+import json
 import random
 import datasets
 import torch
@@ -12,10 +13,10 @@ from functools import partial
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-
+import deepspeed
 import transformers
 from transformers import (
     AutoConfig,
@@ -45,19 +46,45 @@ def parse_args():
         help="The name of the dataset to use (via the datasets library).",
     )
     parser.add_argument(
+        "--preprocessed_dataset",
+        action="store_true",
+        help="If passed, will use a preprocessed dataset which is already tokenized and formatted for causal language modeling.",
+    )
+    parser.add_argument(
+        "--skip_special_tokens",
+        action="store_true",
+        help="If passed, will skip special tokens when computing the loss.",
+    )
+    parser.add_argument(
         "--dataset_config_name",
         type=str,
         default=None,
         help="The configuration name of the dataset to use (via the datasets library).",
     )
     parser.add_argument(
-        "--train_file", type=str, default=None, help="A csv or a json file containing the training data."
+        "--train_file",
+        nargs="+",
+        type=str,
+        default=None,
+        help="File(s) containing the training data. Usually jsonl in case of raw datasets.",
+    )
+    parser.add_argument(
+        "--val_file",
+        nargs="+",
+        type=str,
+        default=None,
+        help="File(s) containing the validation data. Usually jsonl in case of raw datasets.",
     )
     parser.add_argument(
         "--model_name_or_path",
         type=str,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
         required=False,
+    )
+    parser.add_argument(
+        "--from_scratch",
+        action="store_true",
+        help="If passed, will train the model from scratch instead of from pretrained.",
     )
     parser.add_argument(
         "--config_name",
@@ -89,6 +116,11 @@ def parse_args():
         help="The dropout rate of lora modules.",
     )
     parser.add_argument(
+        "--save_merged_lora_model",
+        action="store_true",
+        help="If passed, will merge the lora modules and save the entire model.",
+    )
+    parser.add_argument(
         "--use_flash_attn",
         action="store_true",
         help="If passed, will use flash attention to train the model.",
@@ -115,6 +147,12 @@ def parse_args():
         type=int,
         default=8,
         help="Batch size (per device) for the training dataloader.",
+    )
+    parser.add_argument(
+        "--per_device_val_batch_size",
+        type=int,
+        default=8,
+        help="Batch size (per device) for the validation dataloader.",
     )
     parser.add_argument(
         "--learning_rate",
@@ -223,6 +261,19 @@ def parse_args():
         action='store_true',
         help='Use 8bit optimizer from bitsandbytes. Not compatible with deepspeed (use deepspeed config instead).',
     )
+    parser.add_argument(
+        "--embedding_idx_to_freeze_up_to",
+        type=int,
+        default=-1,
+        help="The index of the embedding layer to freeze up to. -1 means no embedding layer will be frozen.",
+    )
+    parser.add_argument(
+        "--components_to_freeze",
+        nargs="+",
+        type=str,
+        default=None,
+        help="The components to freeze. If not specified, nothing will be frozen. Possible values can be embed_tokens, layers, layers.N (N=0 to 31), self_attn, (q/k/v)_proj, rotary_emb, mlp, gate_proj, up_proj, down_proj, lm_head, norm, input_layernorm, post_attention_layernorm.",
+    )
     args = parser.parse_args()
 
     # Sanity checks
@@ -230,9 +281,19 @@ def parse_args():
         raise ValueError("Need either a dataset name or a training file.")
     else:
         if args.train_file is not None:
-            extension = args.train_file.split(".")[-1]
-            assert extension in ["json", "jsonl"], "`train_file` should be a json/jsonl file."
+            if args.preprocessed_dataset:
+                print("Preprocessed dataset will be loaded from `train_file` and `val_file`.")
+            else:
+                extension = args.train_file[0].split(".")[-1]
+                assert extension in ["json", "jsonl"], "`train_file` should be a json/jsonl file."
+                if args.val_file is not None:
+                    extension = args.val_file[0].split(".")[-1]
+                    assert extension in ["json", "jsonl"], "`val_file` should be a json/jsonl file."
     return args
+
+
+def identity(example, tokenizer, max_seq_length):
+    return example
 
 
 def encode_with_prompt_completion_format(example, tokenizer, max_seq_length):
@@ -333,11 +394,24 @@ def save_with_accelerate(accelerator, model, tokenizer, output_dir, args):
         # We have to manually specify the is_main_process outside the save_pretrained function.
         if accelerator.is_main_process:
             unwrapped_model.save_pretrained(output_dir, state_dict=state_dict)
+        
+        if args.embedding_idx_to_freeze_up_to != -1:
+            # We need to save the embeddings and lm head as well
+            embeddings = deepspeed.utils.safe_get_full_fp32_param(model.module.get_input_embeddings().weight)
+            if accelerator.is_main_process:
+                accelerator.save(embeddings, os.path.join(output_dir, "embeddings.pkl"))
+            del embeddings
+
+            embeddings = deepspeed.utils.safe_get_full_fp32_param(model.module.get_output_embeddings().weight)
+            if accelerator.is_main_process:
+                accelerator.save(embeddings, os.path.join(output_dir, "lm_head.pkl"))
+            del embeddings
+            torch.cuda.empty_cache()
     else:
         unwrapped_model.save_pretrained(
             output_dir, is_main_process=accelerator.is_main_process, save_function=accelerator.save, state_dict=state_dict
         )
-        
+
 
 def main():
     args = parse_args()
@@ -383,25 +457,40 @@ def main():
     if accelerator.is_main_process:
         if args.output_dir is not None:
             os.makedirs(args.output_dir, exist_ok=True)
+        
+            # save the script arguments
+            with open(os.path.join(args.output_dir, "hparams.json"), "w") as fp:
+                fp.write(json.dumps(vars(args), indent=2))
     
     accelerator.wait_for_everyone()
 
-    if args.dataset_name is not None:
-        # Downloading and loading a dataset from the hub.
-        raw_datasets = load_dataset(
-            args.dataset_name,
-            args.dataset_config_name,
-        )
+    if args.preprocessed_dataset:
+        # load the preprocessed data from file on the disk if available
+        print("Loading preprocessed dataset...")
+        raw_datasets = {}
+
+        all_train_raw_datasets = []
+        for dataset_name in args.train_file:
+            all_train_raw_datasets.append(load_from_disk(dataset_name))
+        raw_datasets["train"] = datasets.concatenate_datasets(all_train_raw_datasets)
+        raw_datasets["train"].shuffle()
+
+        if args.val_file is not None:
+            all_val_raw_datasets = []
+            for dataset_name in args.val_file:
+                all_val_raw_datasets.append(load_from_disk(dataset_name))
+            raw_datasets["validation"] = datasets.concatenate_datasets(all_val_raw_datasets)
+            raw_datasets["validation"].shuffle()
     else:
-        data_files = {}
-        dataset_args = {}
-        if args.train_file is not None:
-            data_files["train"] = args.train_file
-        raw_datasets = load_dataset(
-            "json",
-            data_files=data_files,
-            **dataset_args,
-        )
+        if args.dataset_name is not None:
+            # Downloading and loading a dataset from the hub.
+            raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name)
+        else:
+            data_files = {}
+            dataset_args = {}
+            if args.train_file is not None:
+                data_files["train"] = args.train_file
+            raw_datasets = load_dataset("json", data_files=data_files, **dataset_args)
 
     # Load pretrained model and tokenizer
     if args.config_name:
@@ -456,30 +545,33 @@ def main():
         logger.info("Training new model from scratch")
         model = AutoModelForCausalLM.from_config(config)
 
-
+    
     # no default pad token for llama!
     # here we add all special tokens again, because the default ones are not in the special_tokens_map
-    if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
-        num_added_tokens = tokenizer.add_special_tokens({
-            "bos_token": "<s>",
-            "eos_token": "</s>",
-            "unk_token": "<unk>",
-            "pad_token": "<pad>",
-        })
-        assert num_added_tokens in [0, 1], "LlamaTokenizer should only add one special token - the pad_token, or no tokens if pad token present."
-    elif isinstance(tokenizer, GPTNeoXTokenizerFast):
-        num_added_tokens = tokenizer.add_special_tokens({
-            "pad_token": "<pad>",
-        })
-        assert num_added_tokens == 1, "GPTNeoXTokenizer should only add one special token - the pad_token."
-    elif isinstance(tokenizer, GPT2Tokenizer) and isinstance(model, OPTForCausalLM):
-        num_added_tokens = tokenizer.add_special_tokens({'unk_token': '<unk>'})
+    if args.skip_special_tokens:
+        pass
+    else:
+        if isinstance(tokenizer, LlamaTokenizer) or isinstance(tokenizer, LlamaTokenizerFast):
+            num_added_tokens = tokenizer.add_special_tokens({
+                "bos_token": "<s>",
+                "eos_token": "</s>",
+                "unk_token": "<unk>",
+                "pad_token": "<pad>",
+            })
+            assert num_added_tokens in [0, 1], "LlamaTokenizer should only add one special token - the pad_token, or no tokens if pad token present."
+        elif isinstance(tokenizer, GPTNeoXTokenizerFast):
+            num_added_tokens = tokenizer.add_special_tokens({
+                "pad_token": "<pad>",
+            })
+            assert num_added_tokens == 1, "GPTNeoXTokenizer should only add one special token - the pad_token."
+        elif isinstance(tokenizer, GPT2Tokenizer) and isinstance(model, OPTForCausalLM):
+            num_added_tokens = tokenizer.add_special_tokens({'unk_token': '<unk>'})
 
-    # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
-    # on a small vocab and want a smaller embedding size, remove this test.
-    embedding_size = model.get_input_embeddings().weight.shape[0]
-    if len(tokenizer) > embedding_size:
-        model.resize_token_embeddings(len(tokenizer))
+        # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
+        # on a small vocab and want a smaller embedding size, remove this test.
+        embedding_size = model.get_input_embeddings().weight.shape[0]
+        if len(tokenizer) > embedding_size:
+            model.resize_token_embeddings(len(tokenizer))
 
     if args.use_lora:
         if args.use_qlora:
@@ -492,7 +584,7 @@ def main():
             r=args.lora_rank, 
             lora_alpha=args.lora_alpha, 
             lora_dropout=args.lora_dropout,
-            target_modules=["q_proj", "o_proj", "v_proj", "k_proj", "gate_proj", "up_proj", "down_proj"]
+            target_modules=args.lora_target_modules
         )
         model = get_peft_model(model, peft_config)
         # peft breaks flash attention due to casting norms to fp32. This fixes it back up.
@@ -500,36 +592,81 @@ def main():
         # from llama_flash_attn_monkey_patch import upcast_layer_for_flash_attention
         # model = upcast_layer_for_flash_attention(model, torch.bfloat16)
         model.print_trainable_parameters()
+    
+    if args.embedding_idx_to_freeze_up_to != -1:
+        print("Freezing embeddings up to index {}".format(args.embedding_idx_to_freeze_up_to))
+        
+        def hook(grad):
+            grad[: args.embedding_idx_to_freeze_up_to].zero_()
+            return grad
+        
+        if args.use_lora:
+            print(
+                "Setting embeddings and lm head as trainable and then we will remove gradients up to index {}".format(
+                    args.embedding_idx_to_freeze_up_to
+                )
+            )
+            model.get_input_embeddings().weight.requires_grad = True
+            model.get_output_embeddings().weight.requires_grad = True
+            model.print_trainable_parameters()
+        
+        model.get_input_embeddings().weight.register_hook(hook)
+        model.get_output_embeddings().weight.register_hook(hook)
 
     # Preprocessing the datasets.
-    if "prompt" in raw_datasets["train"].column_names and "completion" in raw_datasets["train"].column_names:
+    if args.preprocessed_dataset:
         encode_function = partial(
-            encode_with_prompt_completion_format,
+            identity,
             tokenizer=tokenizer,
             max_seq_length=args.max_seq_length,
         )
-    elif "messages" in raw_datasets["train"].column_names:
-        encode_function = partial(
-            encode_with_messages_format,
-            tokenizer=tokenizer,
-            max_seq_length=args.max_seq_length,
-        )
-    else:
-        raise ValueError("You need to have either 'prompt'&'completion' or 'messages' in your column names.")
-    
-    with accelerator.main_process_first():
-        lm_datasets = raw_datasets.map(
-            encode_function,
-            batched=False,
-            num_proc=args.preprocessing_num_workers,
-            load_from_cache_file=not args.overwrite_cache,
-            remove_columns=[name for name in raw_datasets["train"].column_names if name not in ["input_ids", "labels", "attention_mask"]],
-            desc="Tokenizing and reformatting instruction data",
-        )
-        lm_datasets.set_format(type="pt")
-        lm_datasets = lm_datasets.filter(lambda example: (example['labels'] != -100).any())
+        with accelerator.main_process_first():
+            lm_datasets = {}
+            for split in raw_datasets.keys():
+                lm_datasets[split] = raw_datasets[split].map(
+                    encode_function,
+                    batched=False,
+                    num_proc=args.preprocessing_num_workers,
+                    load_from_cache_file=not args.overwrite_cache,
+                    remove_columns=[name for name in raw_datasets["train"].column_names if name not in ["input_ids", "labels", "attention_mask"]],
+                    desc="Reformatting instruction data",
+                )
+                lm_datasets[split].set_format(type="pt")
 
-    train_dataset = lm_datasets["train"]
+        train_dataset = lm_datasets["train"]
+        if args.val_file is not None:
+            val_dataset = lm_datasets["validation"]
+    else:
+        if "prompt" in raw_datasets["train"].column_names and "completion" in raw_datasets["train"].column_names:
+            encode_function = partial(
+                encode_with_prompt_completion_format,
+                tokenizer=tokenizer,
+                max_seq_length=args.max_seq_length,
+            )
+        elif "messages" in raw_datasets["train"].column_names:
+            encode_function = partial(
+                encode_with_messages_format,
+                tokenizer=tokenizer,
+                max_seq_length=args.max_seq_length,
+            )
+        else:
+            raise ValueError("You need to have either 'prompt'&'completion' or 'messages' in your column names.")
+    
+        with accelerator.main_process_first():
+            lm_datasets = raw_datasets.map(
+                encode_function,
+                batched=False,
+                num_proc=args.preprocessing_num_workers,
+                load_from_cache_file=not args.overwrite_cache,
+                remove_columns=[name for name in raw_datasets["train"].column_names if name not in ["input_ids", "labels", "attention_mask"]],
+                desc="Tokenizing and reformatting instruction data",
+            )
+            lm_datasets.set_format(type="pt")
+            lm_datasets = lm_datasets.filter(lambda example: (example['labels'] != -100).any())
+
+        train_dataset = lm_datasets["train"]
+        if args.val_file is not None:
+            val_dataset = lm_datasets["validation"]
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
@@ -542,6 +679,13 @@ def main():
         collate_fn=DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model, padding="longest"),
         batch_size=args.per_device_train_batch_size
     )
+    if args.val_file is not None:
+        val_dataloader = DataLoader(
+            val_dataset,
+            shuffle=False,
+            collate_fn=DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model, padding="longest"),
+            batch_size=args.per_device_val_batch_size,
+        )
 
     # Optimizer
     # Split weights in two groups, one with weight decay and the other not.
@@ -569,7 +713,7 @@ def main():
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps / accelerator.num_processes)
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
@@ -588,18 +732,27 @@ def main():
         num_training_steps=num_training_steps_for_scheduler,
         num_warmup_steps=int(num_training_steps_for_scheduler * args.warmup_ratio),
     )
+    
+    if not args.use_lora and args.gradient_checkpointing:
+        print("Using gradient checkpointing with full fine tuning")
+        model.gradient_checkpointing_enable()
 
     # Prepare everything with `accelerator`.
-    model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-        model, optimizer, train_dataloader, lr_scheduler
-    )
+    if args.val_file is not None:
+        model, optimizer, train_dataloader, val_dataloader, lr_scheduler = accelerator.prepare(
+            model, optimizer, train_dataloader, val_dataloader, lr_scheduler
+        )
+    else:
+        model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            model, optimizer, train_dataloader, lr_scheduler
+        )
 
-    # We need to recalculate our total training steps as the size of the training dataloader may have changed.
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
-    if overrode_max_train_steps:
-        args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
-    # Afterwards we recalculate our number of training epochs
-    args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
+    # # We need to recalculate our total training steps as the size of the training dataloader may have changed.
+    # num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
+    # if overrode_max_train_steps:
+    #     args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
+    # # Afterwards we recalculate our number of training epochs
+    # args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
 
     # Figure out how many steps we should save the Accelerator states
     checkpointing_steps = args.checkpointing_steps
@@ -612,7 +765,7 @@ def main():
         experiment_config = vars(args)
         # TensorBoard cannot log Enums, need the raw value
         experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
-        accelerator.init_trackers("open_instruct", experiment_config)
+        accelerator.init_trackers("indic_instruct", experiment_config)
 
     # Train!
     total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -638,9 +791,7 @@ def main():
             # Get the most recent checkpoint
             dirs = [f.name for f in os.scandir(os.getcwd()) if f.is_dir()]
             dirs.sort(key=os.path.getctime)
-            path = dirs[
-                -1
-            ]  # Sorts folders by date modified, most recent checkpoint is the last
+            path = dirs[-1]  # Sorts folders by date modified, most recent checkpoint is the last
             checkpoint_path = path
             path = os.path.basename(checkpoint_path)
 
@@ -655,10 +806,7 @@ def main():
             completed_steps = starting_epoch * num_update_steps_per_epoch
         else:
             # need to multiply `gradient_accumulation_steps` to reflect real steps
-            resume_step = (
-                int(training_difference.replace("step_", ""))
-                * args.gradient_accumulation_steps
-            )
+            resume_step = int(training_difference.replace("step_", "")) * args.gradient_accumulation_steps
             starting_epoch = resume_step // len(train_dataloader)
             completed_steps = resume_step // args.gradient_accumulation_steps
             resume_step -= starting_epoch * len(train_dataloader)
@@ -669,18 +817,21 @@ def main():
     for epoch in range(starting_epoch, args.num_train_epochs):
         model.train()
         total_loss = 0
-        if (
-            args.resume_from_checkpoint
-            and epoch == starting_epoch
-            and resume_step is not None
-        ):
+        if args.resume_from_checkpoint and epoch == starting_epoch and resume_step is not None:
             # We skip the first `n` batches in the dataloader when resuming from a checkpoint
             active_dataloader = accelerator.skip_first_batches(
                 train_dataloader, resume_step
             )
         else:
             active_dataloader = train_dataloader
+
         for step, batch in enumerate(active_dataloader):
+            ## For a preprocessed dataset, if the labels are not stored in the dataset, we need to just use the input_ids as labels
+            if "labels" not in batch:
+                batch["labels"] = batch["input_ids"].clone()
+            if "attention_mask" not in batch:
+                batch["attention_mask"] = torch.ones_like(batch["input_ids"])
+
             with accelerator.accumulate(model):
                 outputs = model(**batch, use_cache=False)                
                 loss = outputs.loss
@@ -713,28 +864,136 @@ def main():
                     
                 if isinstance(checkpointing_steps, int):
                     if completed_steps % checkpointing_steps == 0:
+                        if args.val_file is not None:
+                            # ----------------------------------------------------------------------------
+                            #               evaluation on held out set
+                            # ----------------------------------------------------------------------------
+                            val_total_loss = 0
+                            for step, batch in enumerate(val_dataloader):
+                                if "labels" not in batch:
+                                    batch["labels"] = batch["input_ids"].clone()
+                                if "attention_mask" not in batch:
+                                    batch["attention_mask"] = torch.ones_like(batch["input_ids"])
+
+                                with torch.inference_mode():
+                                    outputs = model(**batch, use_cache=False)
+                                    loss = outputs.loss
+                                    val_total_loss += loss.detach().float()
+                            
+                            avg_val_loss = accelerator.gather(val_total_loss).mean().item() / args.gradient_accumulation_steps / len(val_dataloader)
+                            logger.info(f"  Step: {completed_steps}, Val Loss: {avg_val_loss}")
+                            if args.with_tracking:
+                                accelerator.log(
+                                    {
+                                        "val_loss": avg_val_loss,
+                                    },
+                                    step=completed_steps,
+                                )
+                            
+                            if avg_val_loss < best_loss:
+                                best_loss = avg_val_loss
+                                output_dir = f"best"
+                                if args.output_dir is not None:
+                                    output_dir = os.path.join(args.output_dir, output_dir)
+                                accelerator.wait_for_everyone()
+                                save_with_accelerate(accelerator, model, tokenizer, output_dir, args)
+                            # ----------------------------------------------------------------------------
+                            
                         output_dir = f"step_{completed_steps}"
                         if args.output_dir is not None:
                             output_dir = os.path.join(args.output_dir, output_dir)
+                        accelerator.wait_for_everyone()
                         save_with_accelerate(accelerator, model, tokenizer, output_dir, args)
 
                 if completed_steps >= args.max_train_steps:
                     break
 
         if args.checkpointing_steps == "epoch":
+            if args.val_file is not None:
+                # ----------------------------------------------------------------------------
+                #               evaluation on held out set
+                # ----------------------------------------------------------------------------
+                val_total_loss = 0
+                for step, batch in enumerate(val_dataloader):
+                    if "labels" not in batch:
+                        batch["labels"] = batch["input_ids"].clone()
+                    if "attention_mask" not in batch:
+                        batch["attention_mask"] = torch.ones_like(batch["input_ids"])
+
+                    with torch.inference_mode():
+                        outputs = model(**batch, use_cache=False)
+                        loss = outputs.loss
+                        val_total_loss += loss.detach().float()
+
+                avg_val_loss = accelerator.gather(val_total_loss).mean().item() / args.gradient_accumulation_steps / len(val_dataloader)
+                logger.info(f"  Step: {completed_steps}, Val Loss: {avg_val_loss}")
+                if args.with_tracking:
+                    accelerator.log(
+                        {
+                            "val_loss": avg_val_loss,
+                        },
+                        step=completed_steps,
+                    )
+
+                if avg_val_loss < best_loss:
+                    best_loss = avg_val_loss
+                    output_dir = f"best"
+                    if args.output_dir is not None:
+                        output_dir = os.path.join(args.output_dir, output_dir)
+                    accelerator.wait_for_everyone()
+                    save_with_accelerate(accelerator, model, tokenizer, output_dir, args)
+                # ----------------------------------------------------------------------------
+
             output_dir = f"epoch_{epoch}"
             if args.output_dir is not None:
                 output_dir = os.path.join(args.output_dir, output_dir)
+            accelerator.wait_for_everyone()
             save_with_accelerate(accelerator, model, tokenizer, output_dir, args)
 
     if args.with_tracking:
         accelerator.end_training()
 
     if args.output_dir is not None:
+        if args.val_file is not None:
+            # ----------------------------------------------------------------------------
+            #               evaluation on held out set
+            # ----------------------------------------------------------------------------
+            val_total_loss = 0
+            for step, batch in enumerate(val_dataloader):
+                if "labels" not in batch:
+                    batch["labels"] = batch["input_ids"].clone()
+                if "attention_mask" not in batch:
+                    batch["attention_mask"] = torch.ones_like(batch["input_ids"])
+
+                with torch.inference_mode():
+                    outputs = model(**batch, use_cache=False)
+                    loss = outputs.loss
+                    val_total_loss += loss.detach().float()
+
+            avg_val_loss = accelerator.gather(val_total_loss).mean().item() / args.gradient_accumulation_steps / len(val_dataloader)
+            logger.info(f"  Step: {completed_steps}, Val Loss: {avg_val_loss}")
+            if args.with_tracking:
+                accelerator.log(
+                    {
+                        "val_loss": avg_val_loss,
+                    },
+                    step=completed_steps,
+                )
+
+            if avg_val_loss < best_loss:
+                best_loss = avg_val_loss
+                output_dir = f"best"
+                if args.output_dir is not None:
+                    output_dir = os.path.join(args.output_dir, output_dir)
+                accelerator.wait_for_everyone()
+                save_with_accelerate(accelerator, model, tokenizer, output_dir, args)
+            # ----------------------------------------------------------------------------
+
         accelerator.wait_for_everyone()
-        if accelerator.is_main_process:
-            tokenizer.save_pretrained(args.output_dir)
         save_with_accelerate(accelerator, model, tokenizer, args.output_dir, args)
+
+    if args.with_tracking:
+        accelerator.end_training()
 
 
 if __name__ == "__main__":
