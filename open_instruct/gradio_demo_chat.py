@@ -15,6 +15,7 @@ model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
 
 model.half().cuda()
 
+
 def convert_message(message):
     message_text = ""
     if message["content"] is None and message["role"] == "assistant":
@@ -34,6 +35,7 @@ def convert_message(message):
     message_text = message_text.replace("<br>", "\n")
     return message_text
 
+
 def convert_history(chat_history, max_input_length=1024):
     history_text = ""
     idx = len(chat_history) - 1
@@ -49,11 +51,12 @@ def convert_history(chat_history, max_input_length=1024):
         history_text = "<|assistant|>\n"
     return history_text
 
+
 @torch.inference_mode()
 def instruct(instruction, max_token_output=1024):
     input_text = instruction
     streamer = TextIteratorStreamer(tokenizer, skip_prompt=True)
-    input_ids = tokenizer(input_text, return_tensors='pt', truncation=False)
+    input_ids = tokenizer(input_text, return_tensors="pt", truncation=False)
     input_ids["input_ids"] = input_ids["input_ids"].cuda()
     input_ids["attention_mask"] = input_ids["attention_mask"].cuda()
     generation_kwargs = dict(input_ids, streamer=streamer, max_new_tokens=max_token_output)
@@ -69,6 +72,7 @@ with gr.Blocks() as demo:
             instruction = gr.Textbox(label="Input")
             output = gr.Textbox(label="Output")
         greet_btn = gr.Button("Submit")
+
         def yield_instruct(instruction):
             # quick prompt hack:
             instruction = "<|user|>\n" + instruction + "\n<|assistant|>\n"
@@ -76,12 +80,14 @@ with gr.Blocks() as demo:
             for token in instruct(instruction):
                 output += token
                 yield output
+
         greet_btn.click(fn=yield_instruct, inputs=[instruction], outputs=output, api_name="greet")
     # chatbot-style model
     with gr.Tab("Chatbot"):
         chatbot = gr.Chatbot([], elem_id="chatbot")
         msg = gr.Textbox()
         clear = gr.Button("Clear")
+
         # fn to add user message to history
         def user(user_message, history):
             return "", history + [[user_message, None]]
@@ -94,9 +100,7 @@ with gr.Blocks() as demo:
             history[-1][1] += new_token
             yield history
 
-    msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(
-        bot, chatbot, chatbot
-    )
+    msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(bot, chatbot, chatbot)
 
     clear.click(lambda: None, None, chatbot, queue=False)
 

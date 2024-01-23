@@ -5,7 +5,11 @@ from transformers import Trainer, is_torch_tpu_available
 from transformers.deepspeed import is_deepspeed_zero3_enabled
 from transformers.utils import is_sagemaker_mp_enabled, WEIGHTS_NAME, logging
 from transformers.trainer_utils import ShardedDDPOption
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP, StateDictType, FullStateDictConfig
+from torch.distributed.fsdp import (
+    FullyShardedDataParallel as FSDP,
+    StateDictType,
+    FullStateDictConfig,
+)
 from typing import Optional
 
 if is_sagemaker_mp_enabled():
@@ -14,11 +18,17 @@ if is_sagemaker_mp_enabled():
 
     IS_SAGEMAKER_MP_POST_1_10 = version.parse(SMP_VERSION) >= version.parse("1.10")
 
-    from transformers.trainer_pt_utils import smp_forward_backward, smp_forward_only, smp_gather, smp_nested_concat
+    from transformers.trainer_pt_utils import (
+        smp_forward_backward,
+        smp_forward_only,
+        smp_gather,
+        smp_nested_concat,
+    )
 else:
     IS_SAGEMAKER_MP_POST_1_10 = False
 
 logger = logging.get_logger(__name__)
+
 
 class SafeSaveTrainer(Trainer):
     def save_model(self, output_dir: Optional[str] = None, _internal_call: bool = False):
@@ -47,7 +57,9 @@ class SafeSaveTrainer(Trainer):
             or self.fsdp is not None
         ):
             full_state_dict_config = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
-            with FSDP.state_dict_type(self.model, StateDictType.FULL_STATE_DICT, full_state_dict_config):
+            with FSDP.state_dict_type(
+                self.model, StateDictType.FULL_STATE_DICT, full_state_dict_config
+            ):
                 state_dict = self.model.state_dict()
 
             if self.args.should_save:

@@ -1,4 +1,3 @@
-
 import random
 
 encoding_templates_w_input = [
@@ -13,11 +12,23 @@ encoding_templates_w_input = [
     ("Task: {instruction}\nInput: {input}\nOutput:", "{output}", 0.05),
     ("Task: {instruction}\n\n{input}\n\n", "{output}", 0.05),
     ("Task: {instruction}\n\n{input}\n\nAnswer:", "{output}", 0.05),
-    ("You need to complete the following task:\n\n{instruction}\n\n{input}\n\nAnswer:", "{output}", 0.05),
-    ("{instruction}\n\nNow complete the following instance -\nInput: {input}\nOutput:", "{output}", 0.05),
+    (
+        "You need to complete the following task:\n\n{instruction}\n\n{input}\n\nAnswer:",
+        "{output}",
+        0.05,
+    ),
+    (
+        "{instruction}\n\nNow complete the following instance -\nInput: {input}\nOutput:",
+        "{output}",
+        0.05,
+    ),
     ("Instruction:{instruction}\n\nInput: {input}\n\n", "{output}", 0.05),
-    ("Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n"
-     "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:", "{output}", 0.1), # alpaca template
+    (
+        "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:",
+        "{output}",
+        0.1,
+    ),  # alpaca template
 ]
 
 encoding_templates_wo_input = [
@@ -34,7 +45,11 @@ encoding_templates_wo_input = [
     ("Can you help with this?\n\n{instruction}\n", "{output}", 0.05),
     ("Plase answer the following request: {instruction}\nAnswer:", "{output}", 0.05),
     ("Tell me how would you respond to the following request.\n{instruction}\n", "{output}", 0.05),
-    ("Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:", "{output}", 0.1), # alpaca template
+    (
+        "Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:",
+        "{output}",
+        0.1,
+    ),  # alpaca template
 ]
 
 
@@ -83,4 +98,3 @@ def encode_few_shot_example(instruction, examplars, input, output, eos_token=Non
         "completion": output.strip() + eos_token if eos_token else output.strip(),
     }
     return data
-

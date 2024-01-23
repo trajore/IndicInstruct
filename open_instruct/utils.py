@@ -27,7 +27,8 @@ def scaled_init_method_normal(sigma, num_layers):
 
 def xavier_uniform_init_method():
     """Fills the input Tensor with values according to the method described in Understanding the difficulty of
-    training deep feedforward neural networks - Glorot, X. & Bengio, Y. (2010), using a uniform distribution."""
+    training deep feedforward neural networks - Glorot, X. & Bengio, Y. (2010), using a uniform distribution.
+    """
 
     def init_(tensor):
         return nn.init.xavier_uniform_(tensor)
@@ -37,7 +38,8 @@ def xavier_uniform_init_method():
 
 def xavier_normal_init_method():
     """Fills the input Tensor with values according to the method described in Understanding the difficulty of
-    training deep feedforward neural networks - Glorot, X. & Bengio, Y. (2010), using a normal distribution."""
+    training deep feedforward neural networks - Glorot, X. & Bengio, Y. (2010), using a normal distribution.
+    """
 
     def init_(tensor):
         return nn.init.xavier_normal_(tensor)
@@ -47,7 +49,8 @@ def xavier_normal_init_method():
 
 def small_init_init_method(dim):
     """Fills the input Tensor with values according to the method described in Transformers without Tears: Improving
-    the Normalization of Self-Attention - Nguyen, T. & Salazar, J. (2019), using a normal distribution."""
+    the Normalization of Self-Attention - Nguyen, T. & Salazar, J. (2019), using a normal distribution.
+    """
     std = math.sqrt(2 / (5 * dim))
 
     def init_(tensor):
@@ -55,10 +58,11 @@ def small_init_init_method(dim):
 
     return init_
 
+
 def scaled_biderman(sigma, num_layers, hidden_size, intermediate_size, wout_or_w2):
     """Init method based on N(0, sigma/sqrt(2*num_layers) for W_out and W2, else N(0, sigma) for the rest. sigma is calculated as sqrt(2/(hidden_size + intermediate_size))"""
 
-    sigma = math.sqrt(2/(hidden_size + intermediate_size))
+    sigma = math.sqrt(2 / (hidden_size + intermediate_size))
     if wout_or_w2:
         std = sigma / math.sqrt(2.0 * num_layers)
     else:
@@ -66,8 +70,9 @@ def scaled_biderman(sigma, num_layers, hidden_size, intermediate_size, wout_or_w
 
     def init_(tensor):
         return nn.init.normal_(tensor, mean=0.0, std=std)
-    
+
     return init_
+
 
 def wang_init_method(n_layers, dim):
     std = 2 / n_layers / math.sqrt(dim)
@@ -84,11 +89,25 @@ class InitializationScheme:
         if config.init_scheme == "normal":
             init_method = init_method_normal(self.config.initializer_range)
         elif config.init_scheme == "scaled_normal":
-            init_method = scaled_init_method_normal(self.config.initializer_range, self.config.num_hidden_layers)
+            init_method = scaled_init_method_normal(
+                self.config.initializer_range, self.config.num_hidden_layers
+            )
         elif config.init_scheme == "scaled_biderman":
             print("scaled_biderman is being used for llama")
-            self._init_method_wout_w2 = scaled_biderman(self.config.initializer_range, self.config.num_hidden_layers, self.config.hidden_size, self.config.intermediate_size, True)
-            init_method = scaled_biderman(self.config.initializer_range, self.config.num_hidden_layers, self.config.hidden_size, self.config.intermediate_size, False)
+            self._init_method_wout_w2 = scaled_biderman(
+                self.config.initializer_range,
+                self.config.num_hidden_layers,
+                self.config.hidden_size,
+                self.config.intermediate_size,
+                True,
+            )
+            init_method = scaled_biderman(
+                self.config.initializer_range,
+                self.config.num_hidden_layers,
+                self.config.hidden_size,
+                self.config.intermediate_size,
+                False,
+            )
         elif config.init_scheme == "xavier_uniform":
             init_method = xavier_uniform_init_method()
         elif config.init_scheme == "xavier_normal":
@@ -99,7 +118,9 @@ class InitializationScheme:
             init_method = small_init_init_method(config.hidden_size)
         elif config.init_scheme == "small_and_wang_init":
             init_method = small_init_init_method(config.hidden_size)
-            self._output_init_method = wang_init_method(config.num_hidden_layers, config.hidden_size)
+            self._output_init_method = wang_init_method(
+                config.num_hidden_layers, config.hidden_size
+            )
         else:
             raise NotImplementedError(f"Unknown init method {config.init_scheme}")
 

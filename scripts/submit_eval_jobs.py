@@ -8,7 +8,7 @@ from datetime import date
 
 today = date.today().strftime("%m%d%Y")
 
-with open("beaker_configs/default_eval.yaml", 'r') as f:
+with open("beaker_configs/default_eval.yaml", "r") as f:
     default_yaml = f.read()
 d1 = yaml.load(default_yaml, Loader=yaml.FullLoader)
 
@@ -17,10 +17,10 @@ d1 = yaml.load(default_yaml, Loader=yaml.FullLoader)
 cluster = "ai2/allennlp-cirrascale"
 # cluster = "ai2/general-cirrascale-a100-80g-ib"
 num_gpus = 1
-d1['tasks'][0]['context']['cluster'] = cluster
-d1['tasks'][0]['context']['priority'] = "high"
+d1["tasks"][0]["context"]["cluster"] = cluster
+d1["tasks"][0]["context"]["priority"] = "high"
 # d1['tasks'][0]['context']['priority'] = "preemptible"
-d1['tasks'][0]['resources']['gpuCount'] = num_gpus
+d1["tasks"][0]["resources"]["gpuCount"] = num_gpus
 
 # modify here for different set of experiments
 experiment_groups = [
@@ -85,8 +85,6 @@ models = [
     # ("finetuned_llama2_7B_tulu_mix_v2", "01H7DHPX5071J86XVP39Y35F4D", None),
     # ("finetuned_llama2_13B_tulu_mix_v1", "01H7AC0KXGRDH9ACJ24WTSK7SR", None),
     # ("finetuned_llama2_13B_tulu_mix_v2", "01H7AC0M1X81FW8VTN6MGJ3EK8", None),
-
-
     # other causal models
     # ("hf-opt-7B", "facebook/opt-6.7b", None),
     # ("finetuned_opt_7B_flanv2_cot_oasst1_dolly_sharegpt_gpt4alpaca_codealpaca_lumi", "01H13EBXSADXXJCRERART90ZKJ", None),
@@ -98,8 +96,6 @@ models = [
     # ("finetuned_falcon_7B_flanv2_cot_oasst1_dolly_sharegpt_gpt4alpaca_codealpaca_lumi", "01H356X9ZYY8HX1C7HFH6JYWNW", None),
     # ("hf-falcon-rw-7B", "tiiuae/falcon-rw-7b", None),
     # ("finetuned_falcon_rw_7B_flanv2_cot_oasst1_dolly_sharegpt_gpt4alpaca_codealpaca_lumi", "01H37QXWFK095588W6GCMVGFKB", None),
-
-
     # llama2 models
     # ("llama2-7B", "01H7A3707SXDKQRHSK2477HQP8", None),
     # ("llama2-13B", "01H7A4BSRR95XN6PZ89TS7C9GD", None),
@@ -109,7 +105,7 @@ models = [
     # ("llama2-chat-70B", "01H7AC0KXGRDH9ACJ24WTSK7SR", None),
 ]
 
-#--------------- experiments about number of supervision tasks -------------------------
+# --------------- experiments about number of supervision tasks -------------------------
 
 # for experiment_group, model_info in itertools.product(experiment_groups, models):
 for model_info, experiment_group in itertools.product(models, experiment_groups):
@@ -118,11 +114,13 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
 
     model_name = model_info[0] + f"_{model_info[2]}" if model_info[2] is not None else model_info[0]
     name = f"open_instruct_eval_{experiment_group}_{model_name}_{today}"
-    d['description'] = name
-    d['tasks'][0]['name'] = name
+    d["description"] = name
+    d["tasks"][0]["name"] = name
 
     if experiment_group == "mmlu_0shot":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.mmlu.run_eval \
             --ntrain 0 \
             --data_dir /data/mmlu/ \
@@ -133,9 +131,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --load_in_8bit \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     elif experiment_group == "mmlu_5shot":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.mmlu.run_eval \
             --ntrain 5 \
             --data_dir /data/mmlu/ \
@@ -146,9 +146,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --load_in_8bit \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     elif experiment_group == "bbh_direct":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.bbh.run_eval \
             --data_dir /data/bbh \
             --save_dir /output/ \
@@ -160,9 +162,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --no_cot \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     elif experiment_group == "bbh_cot":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.bbh.run_eval \
             --data_dir /data/bbh \
             --save_dir /output/ \
@@ -173,9 +177,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --load_in_8bit \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     elif experiment_group == "gsm_direct":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.gsm.run_eval \
             --data_dir /data/gsm/ \
             --max_num_examples 200 \
@@ -188,9 +194,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --no_cot \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     elif experiment_group == "gsm_cot":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.gsm.run_eval \
             --data_dir /data/gsm/ \
             --max_num_examples 200 \
@@ -202,9 +210,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --load_in_8bit \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        ''' 
+        """
     elif experiment_group == "tydiqa_goldp_1shot":
-        d["tasks"][0]["arguments"][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.tydiqa.run_eval \
             --data_dir /data/tydiqa/ \
             --n_shot 1 \
@@ -217,9 +227,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --load_in_8bit \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     elif experiment_group == "tydiqa_no_context_1shot":
-        d["tasks"][0]["arguments"][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.tydiqa.run_eval \
             --data_dir /data/tydiqa/ \
             --no_context \
@@ -233,9 +245,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --load_in_8bit \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     elif experiment_group == "codex_eval_temp_0.1":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.codex_humaneval.run_eval \
             --data_file /data/codex_humaneval/HumanEval.jsonl.gz \
             --eval_pass_at_ks 1 5 10 20 \
@@ -246,9 +260,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --tokenizer /model \
             --eval_batch_size 32 \
             --load_in_8bit
-        '''
+        """
     elif experiment_group == "codex_eval_temp_0.8":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
             python -m eval.codex_humaneval.run_eval \
             --data_file /data/codex_humaneval/HumanEval.jsonl.gz \
             --eval_pass_at_ks 1 5 10 20 \
@@ -259,9 +275,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --tokenizer /model \
             --eval_batch_size 32 \
             --load_in_8bit
-        '''
+        """
     elif experiment_group == "trutufulqa":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
         python -m eval.truthfulqa.run_eval \
             --data_dir /data/truthfulqa \
             --save_dir /output/ \
@@ -273,9 +291,11 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --gpt_info_model_name curie:ft-allennlp:gpt-info-2023-07-26-11-38-18 \
             --eval_batch_size 20 \
             --load_in_8bit
-        '''
+        """
     elif experiment_group == "toxigen":
-        d['tasks'][0]['arguments'][0] = '''
+        d["tasks"][0]["arguments"][
+            0
+        ] = """
         python -m eval.toxigen.run_eval \
             --data_dir /data/toxigen/ \
             --save_dir /output/ \
@@ -284,61 +304,112 @@ for model_info, experiment_group in itertools.product(models, experiment_groups)
             --use_vllm \
             --use_chat_format \
             --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
-        '''
+        """
     else:
         raise ValueError("experiment_group not supported")
 
     # if a specific checkpoint is specified, load model from that checkpoint
     if model_info[2] is not None:
-        assert "--model_name_or_path /model" in d['tasks'][0]['arguments'][0]
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--model_name_or_path /model", "--model_name_or_path /model/"+model_info[2])]
-        assert "--tokenizer_name_or_path /model" in d['tasks'][0]['arguments'][0]
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--tokenizer_name_or_path /model", "--tokenizer_name_or_path /model/"+model_info[2])]
+        assert "--model_name_or_path /model" in d["tasks"][0]["arguments"][0]
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace(
+                "--model_name_or_path /model", "--model_name_or_path /model/" + model_info[2]
+            )
+        ]
+        assert "--tokenizer_name_or_path /model" in d["tasks"][0]["arguments"][0]
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace(
+                "--tokenizer_name_or_path /model",
+                "--tokenizer_name_or_path /model/" + model_info[2],
+            )
+        ]
 
-    if model_info[0] in ["llama-7B", "llama-13B", "llama-30B", "llama-65B", "llama2-7B", "llama2-13B", "llama2-70B"]:
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--use_chat_format", "")]
+    if model_info[0] in [
+        "llama-7B",
+        "llama-13B",
+        "llama-30B",
+        "llama-65B",
+        "llama2-7B",
+        "llama2-13B",
+        "llama2-70B",
+    ]:
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace("--use_chat_format", "")
+        ]
 
     if "13B" in model_info[0]:
         # find the batch size argument, and reduce by 4x
-        original_batch_size = re.search("--eval_batch_size (\d+)", d['tasks'][0]['arguments'][0]).group(1)
+        original_batch_size = re.search(
+            "--eval_batch_size (\d+)", d["tasks"][0]["arguments"][0]
+        ).group(1)
         new_batch_size = max(1, int(original_batch_size) // 2)
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--eval_batch_size {}".format(original_batch_size), "--eval_batch_size {}".format(new_batch_size))]
-
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace(
+                "--eval_batch_size {}".format(original_batch_size),
+                "--eval_batch_size {}".format(new_batch_size),
+            )
+        ]
 
     if "30B" in model_info[0]:
         # find the batch size argument, and reduce by 4x
-        original_batch_size = re.search("--eval_batch_size (\d+)", d['tasks'][0]['arguments'][0]).group(1)
+        original_batch_size = re.search(
+            "--eval_batch_size (\d+)", d["tasks"][0]["arguments"][0]
+        ).group(1)
         new_batch_size = max(1, int(original_batch_size) // 4)
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--eval_batch_size {}".format(original_batch_size), "--eval_batch_size {}".format(new_batch_size))]
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace(
+                "--eval_batch_size {}".format(original_batch_size),
+                "--eval_batch_size {}".format(new_batch_size),
+            )
+        ]
 
         if "codex_eval" in experiment_group:
             # request 2x more GPUs
-            d['tasks'][0]['resources']['gpuCount'] = 2 * d['tasks'][0]['resources']['gpuCount']
-    
+            d["tasks"][0]["resources"]["gpuCount"] = 2 * d["tasks"][0]["resources"]["gpuCount"]
+
     elif "65B" in model_info[0] or "40B" in model_info[0]:
         # find the batch size argument, and reduce by 4x
-        original_batch_size = re.search("--eval_batch_size (\d+)", d['tasks'][0]['arguments'][0]).group(1)
+        original_batch_size = re.search(
+            "--eval_batch_size (\d+)", d["tasks"][0]["arguments"][0]
+        ).group(1)
         new_batch_size = max(1, int(original_batch_size) // 4)
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--eval_batch_size {}".format(original_batch_size), "--eval_batch_size {}".format(new_batch_size))]
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace(
+                "--eval_batch_size {}".format(original_batch_size),
+                "--eval_batch_size {}".format(new_batch_size),
+            )
+        ]
 
         if "codex_eval" in experiment_group:
             # request 4x more GPUs
-            d['tasks'][0]['resources']['gpuCount'] = 4 * d['tasks'][0]['resources']['gpuCount']
+            d["tasks"][0]["resources"]["gpuCount"] = 4 * d["tasks"][0]["resources"]["gpuCount"]
         else:
             # request 2x more GPUs
-            d['tasks'][0]['resources']['gpuCount'] = 2 * d['tasks'][0]['resources']['gpuCount']
+            d["tasks"][0]["resources"]["gpuCount"] = 2 * d["tasks"][0]["resources"]["gpuCount"]
 
     if model_info[0].startswith("hf-"):  # if it's a huggingface model, load it from the model hub
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--use_chat_format", "")]
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--model_name_or_path /model", "--model_name_or_path "+model_info[1])]
-        d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace("--tokenizer_name_or_path /model", "--model_name_or_path "+model_info[1])]
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace("--use_chat_format", "")
+        ]
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace(
+                "--model_name_or_path /model", "--model_name_or_path " + model_info[1]
+            )
+        ]
+        d["tasks"][0]["arguments"] = [
+            d["tasks"][0]["arguments"][0].replace(
+                "--tokenizer_name_or_path /model", "--model_name_or_path " + model_info[1]
+            )
+        ]
     else:  # if it's a beaker model, mount the beaker dataset to `/model`
-        d['tasks'][0]['datasets'][1]['source']['beaker'] = model_info[1]
+        d["tasks"][0]["datasets"][1]["source"]["beaker"] = model_info[1]
 
         if "llama2-chat" in model_info[0]:
-            d['tasks'][0]['arguments'] = [d['tasks'][0]['arguments'][0].replace(
-                "--chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format", 
-                "--chat_formatting_function eval.templates.create_prompt_with_llama2_chat_format")
+            d["tasks"][0]["arguments"] = [
+                d["tasks"][0]["arguments"][0].replace(
+                    "--chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format",
+                    "--chat_formatting_function eval.templates.create_prompt_with_llama2_chat_format",
+                )
             ]
 
     # print(d)

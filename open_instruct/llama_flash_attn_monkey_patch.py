@@ -17,13 +17,10 @@ from transformers.models.llama.modeling_llama import (
 
 def apply_rotary_pos_emb(q, k, cos_sin, position_ids):
     gather_indices = position_ids[:, :, None, None]  # [bsz, seq_len, 1, 1]
-    gather_indices = gather_indices.repeat(
-        1, 1, cos_sin[0].shape[1], cos_sin[0].shape[3]
-    )
+    gather_indices = gather_indices.repeat(1, 1, cos_sin[0].shape[1], cos_sin[0].shape[3])
     bsz = gather_indices.shape[0]
     cos, sin = (
-        torch.gather(x.transpose(1, 2).repeat(bsz, 1, 1, 1), 1, gather_indices)
-        for x in cos_sin
+        torch.gather(x.transpose(1, 2).repeat(bsz, 1, 1, 1), 1, gather_indices) for x in cos_sin
     )
     q, k = ((x * cos) + (rotate_half(x) * sin) for x in (q, k))
     return q, k
@@ -101,9 +98,7 @@ def forward(
     else:
         q, indices, cu_q_lens, max_s = unpad_input(q, key_padding_mask)
         # We can skip concat and call unpad twice but seems better to call unpad only once.
-        kv, _, cu_k_lens, max_k = unpad_input(
-            torch.stack((k, v), dim=2), key_padding_mask
-        )
+        kv, _, cu_k_lens, max_k = unpad_input(torch.stack((k, v), dim=2), key_padding_mask)
         output_unpad = flash_attn_varlen_kvpacked_func(
             q,
             kv,

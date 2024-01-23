@@ -45,7 +45,10 @@ def smart_tokenizer_and_embedding_resize(
 
 @torch.inference_mode()
 def make_diff(
-    path_raw: str, path_tuned: str, path_diff: str, device="cpu",  # "cuda" or "cpu"
+    path_raw: str,
+    path_tuned: str,
+    path_diff: str,
+    device="cpu",  # "cuda" or "cpu"
 ):
     """Make the weight diff.
 
@@ -119,11 +122,13 @@ def recover(
         torch_dtype=torch.float32,
         low_cpu_mem_usage=True,
     )
-    model_recovered: transformers.PreTrainedModel = transformers.AutoModelForCausalLM.from_pretrained(
-        path_diff,
-        device_map={"": torch.device(device)},
-        torch_dtype=torch.float32,
-        low_cpu_mem_usage=True,
+    model_recovered: transformers.PreTrainedModel = (
+        transformers.AutoModelForCausalLM.from_pretrained(
+            path_diff,
+            device_map={"": torch.device(device)},
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True,
+        )
     )
 
     tokenizer_raw: transformers.PreTrainedTokenizer = transformers.LlamaTokenizer.from_pretrained(
@@ -135,8 +140,8 @@ def recover(
             model=model_raw,
             tokenizer=tokenizer_raw,
         )
-    tokenizer_recovered: transformers.PreTrainedTokenizer = transformers.LlamaTokenizer.from_pretrained(
-        path_diff
+    tokenizer_recovered: transformers.PreTrainedTokenizer = (
+        transformers.LlamaTokenizer.from_pretrained(path_diff)
     )
 
     state_dict_recovered = model_recovered.state_dict()

@@ -12,7 +12,9 @@ from einops import rearrange
 try:
     from flash_attn.flash_attn_triton import flash_attn_qkvpacked_func
 except ImportError:
-    raise ImportError("Error importing `flash_attn_qkvpacked_func` from `flash_attn.flash_attn_trition`")
+    raise ImportError(
+        "Error importing `flash_attn_qkvpacked_func` from `flash_attn.flash_attn_trition`"
+    )
 
 
 def forward(
@@ -30,7 +32,7 @@ def forward(
         warnings.warn(
             "Output attentions is not supported for patched `BloomAttention`, returning `None` instead."
         )
-    
+
     fused_qkv = self.query_key_value(hidden_states)  # [batch_size, seq_length, 3 x hidden_size]
 
     # 3 x [batch_size, seq_length, num_heads, head_dim]
@@ -57,14 +59,18 @@ def forward(
     attention_mask = 1.0 - attention_mask
     attention_mask = attention_mask[:, None, None, :].bool()
     # xxx: overflow
-    alibi_reshaped_masked = alibi_reshaped.masked_fill(attention_mask, torch.finfo(alibi_reshaped.dtype).min)
-    
-    qkv = torch.concat([query_layer.unsqueeze(2), key_layer.unsqueeze(2), value_layer.unsqueeze(2)], dim=2)
-    
+    alibi_reshaped_masked = alibi_reshaped.masked_fill(
+        attention_mask, torch.finfo(alibi_reshaped.dtype).min
+    )
+
+    qkv = torch.concat(
+        [query_layer.unsqueeze(2), key_layer.unsqueeze(2), value_layer.unsqueeze(2)], dim=2
+    )
+
     output = flash_attn_qkvpacked_func(qkv, alibi_reshaped_masked, True, self.inv_norm_factor)
-    
+
     output = rearrange(output, "b s h d -> (b h) s d")
-    
+
     # change view [batch_size, num_heads, q_length, head_dim]
     context_layer = self._merge_heads(output)
 
@@ -92,13 +98,12 @@ def forward(
 # Disable the transformation of the attention mask in BloomModel as the flash attention
 # requires the attention mask to be the same as the key_padding_mask
 def _prepare_attn_mask(
-        self, attention_mask: torch.Tensor, input_shape: Tuple[int, int], past_key_values_length: int
-    ) -> torch.BoolTensor:
+    self, attention_mask: torch.Tensor, input_shape: Tuple[int, int], past_key_values_length: int
+) -> torch.BoolTensor:
     # [batch_size, seq_length]
     return attention_mask
 
+
 def replace_bloom_attn_with_flash_attn():
-    transformers.models.bloom.modeling_bloom.BloomModel._prepare_attn_mask = (
-        _prepare_attn_mask
-    )
+    transformers.models.bloom.modeling_bloom.BloomModel._prepare_attn_mask = _prepare_attn_mask
     transformers.models.bloom.modeling_bloom.BloomAttention.forward = forward

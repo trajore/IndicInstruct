@@ -49,6 +49,8 @@ if __name__ == "__main__":
             sampled_lines = random.sample(range(num_lines), num_sample)
             sampled_lines = set(sampled_lines)
             with open(task_data_path, "r") as fin:
-                for i, line in tqdm.tqdm(enumerate(fin), desc=f"Reading the file to save the sampled lines"):
+                for i, line in tqdm.tqdm(
+                    enumerate(fin), desc=f"Reading the file to save the sampled lines"
+                ):
                     if i in sampled_lines:
                         fout.write(line)

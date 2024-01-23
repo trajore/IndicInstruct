@@ -27,7 +27,7 @@ from transformers import (
     set_seed,
     GPTNeoXTokenizerFast,
     GPT2Tokenizer,
-    OPTForCausalLM
+    OPTForCausalLM,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from safe_save_trainer import SafeSaveTrainer
@@ -52,22 +52,30 @@ class ModelArguments:
         },
     )
     config_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
+        default=None,
+        metadata={"help": "Pretrained config name or path if not the same as model_name"},
     )
     tokenizer_name: Optional[str] = field(
-        default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
+        default=None,
+        metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"},
     )
     cache_dir: Optional[str] = field(
         default=None,
-        metadata={"help": "Where do you want to store the pretrained models downloaded from huggingface.co"},
+        metadata={
+            "help": "Where do you want to store the pretrained models downloaded from huggingface.co"
+        },
     )
     use_fast_tokenizer: bool = field(
         default=False,
-        metadata={"help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."},
+        metadata={
+            "help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."
+        },
     )
     model_revision: str = field(
         default="main",
-        metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
+        metadata={
+            "help": "The specific model version to use (can be a branch name, tag name or commit id)."
+        },
     )
     use_auth_token: bool = field(
         default=False,
@@ -97,12 +105,18 @@ class DataTrainingArguments:
     """
 
     dataset_name: Optional[str] = field(
-        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+        default=None,
+        metadata={"help": "The name of the dataset to use (via the datasets library)."},
     )
     dataset_config_name: Optional[str] = field(
-        default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
+        default=None,
+        metadata={
+            "help": "The configuration name of the dataset to use (via the datasets library)."
+        },
     )
-    train_file: Optional[str] = field(default=None, metadata={"help": "The input training data file (a json/jsonl file)."})
+    train_file: Optional[str] = field(
+        default=None, metadata={"help": "The input training data file (a json/jsonl file)."}
+    )
     max_train_samples: Optional[int] = field(
         default=None,
         metadata={
@@ -123,7 +137,9 @@ class DataTrainingArguments:
     max_seq_length: Optional[int] = field(
         default=None,
         metadata={
-            "help": ("The maximum total input sequence length after tokenization. Sequences longer than this will be truncated,")
+            "help": (
+                "The maximum total input sequence length after tokenization. Sequences longer than this will be truncated,"
+            )
         },
     )
 
@@ -133,13 +149,18 @@ class DataTrainingArguments:
         else:
             if self.train_file is not None:
                 extension = self.train_file.split(".")[-1]
-                assert extension in ["json", "jsonl"], "`train_file` should be a json or a jsonl file."
+                assert extension in [
+                    "json",
+                    "jsonl",
+                ], "`train_file` should be a json or a jsonl file."
 
 
 def main():
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args = parser.parse_json_file(
+            json_file=os.path.abspath(sys.argv[1])
+        )
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -170,7 +191,11 @@ def main():
 
     # Detecting last checkpoint.
     last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
+    if (
+        os.path.isdir(training_args.output_dir)
+        and training_args.do_train
+        and not training_args.overwrite_output_dir
+    ):
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
         if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
             raise ValueError(
@@ -253,7 +278,9 @@ def main():
             torch_dtype=torch_dtype,
         )
     else:
-        logger.warning("No pretrained model_name_or_path is given. Training new model from scratch.")
+        logger.warning(
+            "No pretrained model_name_or_path is given. Training new model from scratch."
+        )
         model = AutoModelForCausalLM.from_config(config)
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params/2**20:.2f}M params")
@@ -261,20 +288,29 @@ def main():
     # no default pad token for llama!
     # here we add all special tokens again, because the default ones are not in the special_tokens_map
     if isinstance(tokenizer, LlamaTokenizer):
-        num_added_tokens = tokenizer.add_special_tokens({
-            "bos_token": "<s>",
-            "eos_token": "</s>",
-            "unk_token": "<unk>",
-            "pad_token": "<pad>",
-        })
-        assert num_added_tokens in [0, 1], "LlamaTokenizer should only add one special token - the pad_token, or no tokens if pad token present."
+        num_added_tokens = tokenizer.add_special_tokens(
+            {
+                "bos_token": "<s>",
+                "eos_token": "</s>",
+                "unk_token": "<unk>",
+                "pad_token": "<pad>",
+            }
+        )
+        assert num_added_tokens in [
+            0,
+            1,
+        ], "LlamaTokenizer should only add one special token - the pad_token, or no tokens if pad token present."
     elif isinstance(tokenizer, GPTNeoXTokenizerFast):
-        num_added_tokens = tokenizer.add_special_tokens({
-            "pad_token": "<pad>",
-        })
-        assert num_added_tokens == 1, "GPTNeoXTokenizer should only add one special token - the pad_token."
+        num_added_tokens = tokenizer.add_special_tokens(
+            {
+                "pad_token": "<pad>",
+            }
+        )
+        assert (
+            num_added_tokens == 1
+        ), "GPTNeoXTokenizer should only add one special token - the pad_token."
     elif isinstance(tokenizer, GPT2Tokenizer) and isinstance(model, OPTForCausalLM):
-        num_added_tokens = tokenizer.add_special_tokens({'unk_token': '<unk>'})
+        num_added_tokens = tokenizer.add_special_tokens({"unk_token": "<unk>"})
 
     # resize embeddings if needed (e.g. for LlamaTokenizer)
     embedding_size = model.get_input_embeddings().weight.shape[0]
@@ -282,7 +318,10 @@ def main():
         model.resize_token_embeddings(len(tokenizer))
 
     # Preprocessing the datasets.
-    if "prompt" in raw_datasets["train"].column_names and "completion" in raw_datasets["train"].column_names:
+    if (
+        "prompt" in raw_datasets["train"].column_names
+        and "completion" in raw_datasets["train"].column_names
+    ):
         encode_function = partial(
             encode_with_prompt_completion_format,
             tokenizer=tokenizer,
@@ -295,8 +334,9 @@ def main():
             max_seq_length=data_args.max_seq_length,
         )
     else:
-        raise ValueError("You need to have either 'prompt'&'completion' or 'messages' in your column names.")
-    
+        raise ValueError(
+            "You need to have either 'prompt'&'completion' or 'messages' in your column names."
+        )
 
     # To speed up this part, we use multiprocessing.
     with training_args.main_process_first(desc="Processing instruction data"):
@@ -347,7 +387,9 @@ def main():
         metrics = train_result.metrics
 
         max_train_samples = (
-            data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
+            data_args.max_train_samples
+            if data_args.max_train_samples is not None
+            else len(train_dataset)
         )
         metrics["train_samples"] = min(max_train_samples, len(train_dataset))
 
