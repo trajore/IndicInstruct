@@ -180,12 +180,12 @@ def main(args):
 
     for subject in tqdm(subjects, desc=f"Evaluating subjects: "):
         
-        dev_df = pd.read_csv(
-            os.path.join(args.data_dir, "dev", subject + "_dev.csv"), header=None
-        )[: args.ntrain]
-        test_df = pd.read_csv(
-            os.path.join(args.data_dir, "test", subject + "_test.csv"), header=None
-        )
+        try:
+            dev_df = pd.read_csv(os.path.join(args.data_dir, "dev", subject + "_dev.csv"), header=None)[: args.ntrain]
+            test_df = pd.read_csv(os.path.join(args.data_dir, "test", subject + "_test.csv"), header=None)
+        except:
+            continue
+        
         if args.n_instances and args.n_instances < test_df.shape[0]:
             test_df = test_df.sample(args.n_instances, random_state=42)
 
@@ -206,16 +206,19 @@ def main(args):
         for j in range(probs.shape[1]):
             choice = choices[j]
             test_df["choice{}_probs".format(choice)] = probs[:, j]
-        test_df.to_csv(
-            os.path.join(
-                args.save_dir, "{}.csv".format(subject)
-            ),
-            index=None,
-        )
+        test_df.to_csv(os.path.join(args.save_dir, "{}.csv".format(subject)), index=None)
 
+    # In IndicMMLU, we exclude math specific subjects where the translation outputs are not good.
+    idxs = []
     for subcat in subcat_cors:
-        subcat_acc = np.mean(np.concatenate(subcat_cors[subcat]))
-        print("Average accuracy {:.3f} - {}".format(subcat_acc, subcat))
+        try:
+            subcat_acc = np.mean(np.concatenate(subcat_cors[subcat]))
+            print("Average accuracy {:.3f} - {}".format(subcat_acc, subcat))
+        except:
+            idxs.append(subcat)
+    
+    for idx in idxs:
+        del subcat_cors[idx]
 
     for cat in cat_cors:
         cat_acc = np.mean(np.concatenate(cat_cors[cat]))
