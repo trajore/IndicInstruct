@@ -16,30 +16,28 @@ from eval.utils import (
     dynamic_import_function,
 )
 
-choices = ["A", "B", "C", "D", "E"]
-num_to_letter = {"1": "A", "2": "B", "3": "C", "4": "D", "5": "E"}
+choices = ["A", "B", "C", "D"]
 
 
-def format_example(question, answers, label=None):
-    user_prompt = f"{question.strip()}\n"
-    for choice, answer in zip(choices, answers):
-        user_prompt += f"{choice}. {answer.strip()}\n"
+def format_example(ctx, endings, label=None):
+    user_prompt = f"{ctx}\n"
+    for choice, ending in zip(choices, endings):
+        user_prompt += f"{choice}. {ending}\n"
     assistant_prompt = "\nAnswer:"
     if label is not None:
-        label = num_to_letter.get(label, label)
         assistant_prompt += " {label}\n\n".format(label=label)
     messages = [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
     return messages
 
+
 def gen_prompt(dev_data, k=-1):
-    prompt = f"The following are multiple choice questions (with answers) about science."
+    prompt = f"Complete the description with an appropriate ending:"
     messages = [{"role": "system", "content": prompt}]
     if k > 0:
         exemplars = dev_data.select(range(k))
         for example in exemplars:
-            messages += format_example(
-                question=example["question"], answers=example["choices"]["text"], label=example["answerKey"]
-            )
+            label = choices[example["label"]]
+            messages += format_example(ctx=example["ctx"], endings=example["endings"], label=label)
     return messages
 
 
@@ -61,14 +59,17 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    dataset = load_dataset(args.dataset, f"ARC-{args.subset.capitalize()}")
-    dev_data = dataset["validation"]
-    test_data = dataset["test"]
+    dataset = load_dataset(args.dataset)
+    dataset = dataset.map(lambda x: {"ctx": x["ctx"].strip()})
+    dataset = dataset.map(lambda x: {"endings": [ending.strip() for ending in x["endings"]]})
+    test_data = dataset["validation"]
+    test_data = test_data.map(lambda x: {"label": int(x["label"])})
 
     prompts = []
     for i, example in enumerate(test_data):
+        dev_data = test_data.filter(lambda x: x["ctx"] != example["ctx"])
         k = args.ntrain
-        prompt_end = format_example(question=example["question"], answers=example["choices"]["text"], label=None)
+        prompt_end = format_example(ctx=example["ctx"], endings=example["endings"], label=None)
         train_prompt = gen_prompt(dev_data.shuffle(seed=args.seed), k)
         prompt = train_prompt + prompt_end
 
@@ -95,30 +96,18 @@ def main(args):
     # get the answer for all examples
     # adding a prefix space here, as that's expected from the prompt
     # TODO: should raise a warning if this returns more than one token
-    # Label space is different for different examples so need to individually
-    # run the likelihood for each example
-    pred_indices = []
-    for prompt, example in tqdm(zip(prompts, test_data)):
-        answer_choices = choices
-        if len(example["choices"]["label"]) == 4:
-            answer_choices = answer_choices[:4]
-
-        answer_choice_ids = [
-            tokenizer.encode(answer_choice, add_special_tokens=False)[-1] for answer_choice in answer_choices
-        ]
-        pred_index, all_prob = get_next_word_predictions(
-            model,
-            tokenizer,
-            [prompt],
-            candidate_token_ids=answer_choice_ids,
-            return_token_predictions=False,
-            disable_tqdm=True,
-        )
-        pred_indices.append(pred_index[0])
+    answer_choice_ids = [tokenizer.encode(answer_choice, add_special_tokens=False)[-1] for answer_choice in choices]
+    pred_indices, all_probs = get_next_word_predictions(
+        model,
+        tokenizer,
+        prompts,
+        candidate_token_ids=answer_choice_ids,
+        return_token_predictions=False,
+        batch_size=args.eval_batch_size,
+    )
 
     # get the metrics
-    ground_truths = [num_to_letter.get(example["answerKey"], example["answerKey"]) for example in test_data]
-    ground_truths = [choices.index(ground_truth) for ground_truth in ground_truths]
+    ground_truths = [example["label"] for example in test_data]
     predictions = [pred_index for pred_index in pred_indices]
     metrics = {
         "accuracy": accuracy_score(ground_truths, predictions),
@@ -138,9 +127,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ntrain", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--dataset", type=str, default="easy", choices=["ai2_arc", "ai4bharat/ai2_arc-hi"])
-    parser.add_argument("--subset", type=str, default="easy", choices=["easy", "challenge"])
-    parser.add_argument("--save_dir", type=str, default="results/mmlu/llama-7B/")
+    parser.add_argument("--dataset", type=str, default="Rowan/hellaswag")
+    parser.add_argument("--save_dir", type=str, default="results/hellaswag/llama-7B/")
     parser.add_argument(
         "--model_name_or_path",
         type=str,
@@ -152,11 +140,6 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="if specified, we will load the tokenizer from here.",
-    )
-    parser.add_argument(
-        "--n_instances",
-        type=int,
-        help="if specified, a maximum of n_instances per subject will be used for the evaluation.",
     )
     parser.add_argument("--eval_batch_size", type=int, default=1, help="batch size for evaluation.")
     parser.add_argument(
