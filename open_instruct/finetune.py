@@ -119,9 +119,11 @@ def parse_args():
         help="The dropout rate of lora modules.",
     )
     parser.add_argument(
-        "--save_merged_lora_model",
-        action="store_true",
-        help="If passed, will merge the lora modules and save the entire model.",
+        "--lora_target_modules", 
+        type=str, 
+        default=None, 
+        nargs="+", 
+        help="Modules to be augmented."
     )
     parser.add_argument(
         "--use_flash_attn",

@@ -4,6 +4,10 @@
 
 We release Airavata v0.1, a Hindi chat model instruction finetuned on SarvamAI's OpenHathi. Please refer to our [official blogspot](https://ai4bharat.github.io/airavata/) for our model details, dataset creation and evaluation process.
 
+<p align="center" width="100%">
+      <img src="images/airavata_logo.png" alt="Airavta is an Hindi instruction-tuned model based on the IndicInstruct datasets." style="width: 20%; min-width: 200px; display: block; margin: auto;">
+</p>
+
 This repo was forked from [allenai/open-instruct](https://github.com/allenai/open-instruct), an open-source initiative for instruction-tuning widely used pretrained language models. More instructions about the codebase can be found there.
 
 ## Setup
@@ -22,14 +26,30 @@ pip install -r weight-diff-requirements.txt
 ## Training
 In general, any model from the Hugging Face Hub may be loaded for training. You may train a model from scratch or finetune an existing model. The following code snippet shows our command for training SarvamAI's OpenHathi base model.
 
-1. Training a model from scratch
+#### Training a model from scratch
+
 ```
-Code
+# install additional package
+pip install lm-dataformat
+
+# preprocess and tokenize the datasets before you perform training from scratch
+python3 scripts/tokenize_dataset.py \
+    --tokenizer_path <tokenizer_path> \
+    --data_path <data_path> \
+    --save_path <save_path> \
+    --max_seq_length <max_seq_length> \
+    --max_examples <max_examples> --max_tokens <max_tokens>
+
+bash scripts/train_with_accelerate.sh
 ```
-2. Finetuning an exisiting model
+
+#### Finetuning an exisiting model
+
 ```
-Code
+bash scripts/finetune_lora_with_accelerate.sh
 ```
+
+Please check the scripts for more information on the arguments.
 
 ## Dataset Preparation
 
@@ -37,7 +57,7 @@ We cover various instruction datasets to train our chat model. The collection co
 
 * Anudesh
 * wikiHow
-* Flan v2 (100k sample subset)
+* Flan v2 (67k sample subset)
 * Dolly
 * Anthropic-HHH (5k sample subset)
 * OpenAssistant v1
@@ -46,9 +66,8 @@ We cover various instruction datasets to train our chat model. The collection co
 We have put together the above datasets and it can be accessed from [Hugging Face](https://huggingface.co/datasets/ai4bharat/indic-instruct-data-v0.1)
 
 
-
 ```
-python3 reformat_indic_instruct_data.py
+python3 reformat_indic_instruct_data.py --output_dir <output_dir>
 ```
 
 
