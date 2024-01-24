@@ -30,16 +30,16 @@ python3 -m eval.arc.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on arc ..."
+echo "evaluating airavata on arc ..."
 
 # zero-shot
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
     --subset "easy"
-    --save_dir "results/arc-easy/airavatha-0shot" \
+    --save_dir "results/arc-easy/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -51,7 +51,7 @@ python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
     --subset "easy"
-    --save_dir "results/arc-easy/airavatha-5shot" \
+    --save_dir "results/arc-easy/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
@@ -87,16 +87,16 @@ python3 -m eval.arc.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on arc ..."
+echo "evaluating airavata on arc ..."
 
 # zero-shot
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
     --subset "challenge"
-    --save_dir "results/arc-challenge/airavatha-0shot" \
+    --save_dir "results/arc-challenge/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -108,7 +108,7 @@ python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
     --subset "challenge"
-    --save_dir "results/arc-challenge/airavatha-5shot" \
+    --save_dir "results/arc-challenge/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
@@ -144,16 +144,16 @@ python3 -m eval.arc.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on arc ..."
+echo "evaluating airavata on arc ..."
 
 # zero-shot
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai4bharat/ai2_arc-hi" \
     --subset "easy"
-    --save_dir "results/arc-easy-hi/airavatha-0shot" \
+    --save_dir "results/arc-easy-hi/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -165,7 +165,7 @@ python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai4bharat/ai2_arc-hi" \
     --subset "easy"
-    --save_dir "results/arc-easy-hi/airavatha-5shot" \
+    --save_dir "results/arc-easy-hi/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
@@ -201,16 +201,16 @@ python3 -m eval.arc.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on arc ..."
+echo "evaluating airavata on arc ..."
 
 # zero-shot
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai4bharat/ai2_arc-hi" \
     --subset "challenge"
-    --save_dir "results/arc-challenge-hi/airavatha-0shot" \
+    --save_dir "results/arc-challenge-hi/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -222,7 +222,7 @@ python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai4bharat/ai2_arc-hi" \
     --subset "challenge"
-    --save_dir "results/arc-challenge-hi/airavatha-5shot" \
+    --save_dir "results/arc-challenge-hi/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \

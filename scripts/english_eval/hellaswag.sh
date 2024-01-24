@@ -3,48 +3,49 @@ export CUDA_VISIBLE_DEVICES=0
 
 
 # -------------------------------------------------------------
-#                            BoolQ
+#                       Hellaswag
 # -------------------------------------------------------------
 
 model_name_or_path="sarvamai/OpenHathi-7B-Hi-v0.1-Base"
 
-echo "evaluating openhathi base on boolq ..."
+echo "evaluating openhathi base on hellaswag ..."
 
 # zero-shot
-python3 -m eval.boolq.run_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 0 \
-    --save_dir "results/boolq/openhathi-base-0shot" \
+    --save_dir "results/hellaswag/openhathi-base-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4
 
 # 5-shot
-python3 -m eval.boolq.run_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 5 \
-    --save_dir "results/boolq/openhathi-base-5shot" \
+    --save_dir "results/hellaswag/openhathi-base-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/airavata"
+model_name_or_path="ai4bharat/Airavatha"
 
-echo "evaluating airavata on boolq ..."
+echo "evaluating airavatha on hellaswag ..."
 
 # zero-shot
-python3 -m eval.boolq.run_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 0 \
-    --save_dir "results/boolq/airavata-0shot" \
+    --save_dir "results/hellaswag/airavatha-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
     --use_chat_format \
     --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
 
+
 # 5-shot
-python3 -m eval.boolq.run_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 5 \
-    --save_dir "results/boolq/airavata-5shot" \
+    --save_dir "results/hellaswag/airavatha-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
@@ -52,50 +53,54 @@ python3 -m eval.boolq.run_eval \
     --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
 
 
-
 # -------------------------------------------------------------
-#                       Indic BoolQ
+#                       Indic Hellaswag
 # -------------------------------------------------------------
 
 model_name_or_path="sarvamai/OpenHathi-7B-Hi-v0.1-Base"
 
-echo "evaluating openhathi base on boolq-hi ..."
+echo "evaluating openhathi base on hellaswag-hi ..."
 
 # zero-shot
-python3 -m eval.boolq.run_translated_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 0 \
-    --save_dir "results/boolq-hi/openhathi-base-0shot" \
+    --dataset "Thanmay/hellaswag-translated" \
+    --save_dir "results/hellaswag-hi/openhathi-base-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4
 
 # 5-shot
-python3 -m eval.boolq.run_translated_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 5 \
-    --save_dir "results/boolq-hi/openhathi-base-5shot" \
+    --dataset "Thanmay/hellaswag-translated" \
+    --save_dir "results/hellaswag-hi/openhathi-base-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/airavata"
+model_name_or_path="ai4bharat/Airavatha"
 
-echo "evaluating airavata on boolq ..."
+echo "evaluating airavatha on hellaswag ..."
 
 # zero-shot
-python3 -m eval.boolq.run_translated_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 0 \
-    --save_dir "results/boolq-hi/airavata-0shot" \
+    --dataset "Thanmay/hellaswag-translated" \
+    --save_dir "results/hellaswag-hi/airavatha-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
     --use_chat_format \
     --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
 
+
 # 5-shot
-python3 -m eval.boolq.run_translated_eval \
+python3 -m eval.hellaswag.run_eval \
     --ntrain 5 \
-    --save_dir "results/boolq-hi/airavata-5shot" \
+    --dataset "Thanmay/hellaswag-translated" \
+    --save_dir "results/hellaswag-hi/airavatha-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \

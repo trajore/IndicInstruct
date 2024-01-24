@@ -27,14 +27,14 @@ python3 -m eval.hellaswag.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on hellaswag ..."
+echo "evaluating airavata on hellaswag ..."
 
 # zero-shot
 python3 -m eval.hellaswag.run_eval \
     --ntrain 0 \
-    --save_dir "results/hellaswag/airavatha-0shot" \
+    --save_dir "results/hellaswag/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -45,7 +45,7 @@ python3 -m eval.hellaswag.run_eval \
 # 5-shot
 python3 -m eval.hellaswag.run_eval \
     --ntrain 5 \
-    --save_dir "results/hellaswag/airavatha-5shot" \
+    --save_dir "results/hellaswag/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
@@ -80,15 +80,15 @@ python3 -m eval.hellaswag.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on hellaswag ..."
+echo "evaluating airavata on hellaswag ..."
 
 # zero-shot
 python3 -m eval.hellaswag.run_eval \
     --ntrain 0 \
     --dataset "Thanmay/hellaswag-translated" \
-    --save_dir "results/hellaswag-hi/airavatha-0shot" \
+    --save_dir "results/hellaswag-hi/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -100,7 +100,7 @@ python3 -m eval.hellaswag.run_eval \
 python3 -m eval.hellaswag.run_eval \
     --ntrain 5 \
     --dataset "Thanmay/hellaswag-translated" \
-    --save_dir "results/hellaswag-hi/airavatha-5shot" \
+    --save_dir "results/hellaswag-hi/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \

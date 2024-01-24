@@ -1,14 +1,12 @@
 # Here we use 1 GPU for demonstration, but you can use multiple GPUs and larger eval_batch_size to speed up the evaluation.
 export CUDA_VISIBLE_DEVICES=1
 
-base_dir="/data/jaygala/llama_ckpts/llama-v2-hf/"
-
 # Llama-2 7B Base Checkpoint
-model_name_or_path="${base_dir}/llama-2-7b"
+model_name_or_path="meta-llama/Llama-2-7b-hf"
 echo "evaluating llama 2 base on indicqa ..."
 
 # # no-context
-python3 -m eval.indicqa.run_eval_v2 \
+python3 -m eval.indicqa.run_translate_test_eval \
     --ntrain 1 \
     --max_context_length 768 \
     --no_context \
@@ -18,7 +16,7 @@ python3 -m eval.indicqa.run_eval_v2 \
     --eval_batch_size 4
 
 # with context
-python3 -m eval.indicqa.run_eval_v2 \
+python3 -m eval.indicqa.run_translate_test_eval \
     --ntrain 1 \
     --max_context_length 768 \
     --save_dir "results/translate_test/llama-2/indicqa/llama-2-7b-5shot" \
@@ -29,11 +27,11 @@ python3 -m eval.indicqa.run_eval_v2 \
 
 # Llama-2 7B Chat Checkpoint
 
-model_name_or_path="${base_dir}/llama-2-7b-chat"
+model_name_or_path="meta-llama/Llama-2-7b-chat-h"
 echo "evaluating llama 2 7b chat on indicqa ..."
 
 # no-context
-python3 -m eval.indicqa.run_eval \
+python3 -m eval.indicqa.run_translate_test_eval \
     --ntrain 1 \
     --max_context_length 768 \
     --no_context \
@@ -45,7 +43,7 @@ python3 -m eval.indicqa.run_eval \
     --chat_formatting_function eval.templates.create_prompt_with_tulu_chat_format
 
 # with context
-python3 -m eval.indicqa.run_eval \
+python3 -m eval.indicqa.run_translate_test_eval \
     --ntrain 1 \
     --max_context_length 768 \
     --save_dir "results/translate_test/llama-2/indicqa/llama-2-7b-chat-1shot" \

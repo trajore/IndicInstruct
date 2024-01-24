@@ -29,15 +29,15 @@ python3 -m eval.mmlu.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on mmlu ..."
+echo "evaluating airavata on mmlu ..."
 
 # zero-shot
 python3 -m eval.mmlu.run_eval \
     --ntrain 0 \
     --data_dir data/eval/mmlu \
-    --save_dir "results/mmlu/airavatha-0shot" \
+    --save_dir "results/mmlu/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -49,7 +49,7 @@ python3 -m eval.mmlu.run_eval \
 python3 -m eval.mmlu.run_eval \
     --ntrain 5 \
     --data_dir data/eval/mmlu \
-    --save_dir "results/mmlu/airavatha-5shot" \
+    --save_dir "results/mmlu/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
@@ -84,15 +84,15 @@ python3 -m eval.mmlu.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on indic mmlu ..."
+echo "evaluating airavata on indic mmlu ..."
 
 # zero-shot
 python3 -m eval.mmlu.run_eval \
     --ntrain 0 \
     --data_dir data/eval/mmlu_hi_translated \
-    --save_dir "results/mmlu-hi/airavatha-0shot" \
+    --save_dir "results/mmlu-hi/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -104,7 +104,7 @@ python3 -m eval.mmlu.run_eval \
 python3 -m eval.mmlu.run_eval \
     --ntrain 5 \
     --data_dir data/eval/mmlu_hi_translated \
-    --save_dir "results/mmlu-hi/airavatha-5shot" \
+    --save_dir "results/mmlu-hi/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \

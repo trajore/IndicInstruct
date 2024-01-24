@@ -22,14 +22,14 @@ python3 -m eval.indicxparaphrase.run_eval \
     --eval_batch_size 4
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on indicxparaphrase ..."
+echo "evaluating airavata on indicxparaphrase ..."
 
 # zero-shot
 python3 -m eval.indicxparaphrase.run_eval \
     --ntrain 0 \
-    --save_dir "results/indicxparaphrase/airavatha-0shot" \
+    --save_dir "results/indicxparaphrase/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 8 \
@@ -40,7 +40,7 @@ python3 -m eval.indicxparaphrase.run_eval \
 # 5-shot
 python3 -m eval.indicxparaphrase.run_eval \
     --ntrain 5 \
-    --save_dir "results/indicxparaphrase/airavatha-5shot" \
+    --save_dir "results/indicxparaphrase/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \

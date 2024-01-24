@@ -27,16 +27,16 @@ python3 -m eval.in22.run_eval \
     --eval_batch_size 4
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on in22-gen ..."
+echo "evaluating airavata on in22-gen ..."
 
 # zero-shot
 python3 -m eval.in22.run_eval \
     --ntrain 0 \
     --dataset "ai4bharat/IN22-Gen" \
     --src_lang eng_Latn --tgt_lang hin_Deva \
-    --save_dir "results/in22-gen/airavatha-0shot" \
+    --save_dir "results/in22-gen/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 8 \
@@ -48,7 +48,7 @@ python3 -m eval.in22.run_eval \
     --ntrain 5 \
     --dataset "ai4bharat/IN22-Gen" \
     --src_lang eng_Latn --tgt_lang hin_Deva \
-    --save_dir "results/in22-gen/airavatha-5shot" \
+    --save_dir "results/in22-gen/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \

@@ -1,28 +1,10 @@
-# Training Open Instruction-Following Language Models
+# Airavata
 
-This repo serves as an open effort on instruction-tuning popular pretrained language models on publicly available datasets. We release this repo and will keep updating it with:
+[📝 Blogpost](https://ai4bharat.github.io/airavata) | [🤗 HF Model](https://huggingface.co/ai4bharat/airavata) [🤗 HF Dataset](https://huggingface.co/datasets/ai4bharat/indic-instruct-data-v0.1) | [🤗 HF Benchmarks](https://huggingface.co/collections/ai4bharat/airavata-evaluation-suite-65b13b7b68165de71ba0b333)
 
-1. Code for finetuning language models with latest techniques and instruction datasets in a unified format.
-2. Code for running standard evaluation on a range of benchmarks, targeting for differnt capabilities of these language models.
-3. Checkpoints or other useful artifacts that we build in our exploration.
+We release Airavata v0.1, a Hindi chat model instruction finetuned on SarvamAI's OpenHathi. Please refer to our [official blogspot](https://ai4bharat.github.io/airavata/) for our model details, dataset creation and evaluation process.
 
-Please see our first paper [How Far Can Camels Go? Exploring the State of Instruction Tuning on Open Resources](https://arxiv.org/abs/2306.04751) for more thoughts behind this project and our initial findings.
-
-<p align="center" width="100%">
-      <img src="images/tulu_logo.png" alt="Tülu (a hybrid camel) represents a suite of LLaMa models that we built by fully-finetuning them on a strong mix of datasets." style="width: 20%; min-width: 200px; display: block; margin: auto;">
-</p>
-
-## News
-
-- [2023-09-26] We switched to use the official [alpaca-eval](https://github.com/tatsu-lab/alpaca_eval) library to run AlpacaFarm evaluation but use regenerated longer reference outputs. This will change our numbers reported in the paper. We will update the paper soon.
-- [2023-09-25] Supported using [vLLM](https://github.com/vllm-project/vllm/) for our evaluations, which speeds up the evaluation by 10x.
-- [2023-09-17] Supported [LoRA](https://arxiv.org/abs/2106.09685) and [QLoRA](https://arxiv.org/abs/2305.14314) finetuning. See [here](#parameter-efficient-finetuning) for more details.
-- [2023-08-18] Added support for [ToxiGen](https://github.com/microsoft/TOXIGEN)/[TrutufulQA](https://github.com/sylinrl/TruthfulQA) evaluation. Check our `scripts/eval/` for examples of running them.
-- [2023-08-08] Supported several new instruction dataset, including [LIMA](https://huggingface.co/datasets/GAIR/lima) / [WizardLM](https://github.com/nlpxucan/WizardLM) / [Open-Orca](https://huggingface.co/datasets/Open-Orca/OpenOrca). See the [preparation script](./scripts/prepare_train_data.sh) for details. Performance hasn't been evaluated yet.
-- [2023-08-06] Supported LLaMa 2 finetuning and FlashAttention-2 by bumping the version of transformers and many other dependencies.
-- [2023-06-29] Added [licensing info](#licensing) for our released models.
-- [2023-06-09] Released Tülu (a suite of LLaMa models fully-finetuned on a strong mix of datasets) and many other checkpoints on HuggingFace [[Links]](#released-checkpoints).
-- [2023-06-09] Initial release of the codebase containing the training and evaluation code for our [arxiv paper](https://arxiv.org/abs/2306.04751).
+This repo was forked from [allenai/open-instruct](https://github.com/allenai/open-instruct), an open-source initiative for instruction-tuning widely used pretrained language models. More instructions about the codebase can be found there.
 
 ## Setup
 
@@ -38,138 +20,104 @@ pip install -r weight-diff-requirements.txt
 ```
 
 ## Training
+In general, any model from the Hugging Face Hub may be loaded for training. You may train a model from scratch or finetune an existing model. The following code snippet shows our command for training SarvamAI's OpenHathi base model.
 
-### Dataset preparation
-
-We include a collection of representative instruction datasets in our exploration and are adding new ones to our list. We unify them into the same chatting format. To download and prepare these datasets, simply run the following command:
-
-```bash
-./scripts/prepare_train_data.sh
+1. Training a model from scratch
+```
+Code
+```
+2. Finetuning an exisiting model
+```
+Code
 ```
 
-Please check these datasets for licenses and restrictions around their use!
+## Dataset Preparation
 
-### Model preparation
+We cover various instruction datasets to train our chat model. The collection consists of:
 
-Generally, most huggingface-compatible causal language models should work fine with our codebase, potentially with some adjusting for different tokenizers etc. Some models may require addtional requests to download. E.g., for LLaMa 1 and 2, please consult [the Hugging Face documentation](https://huggingface.co/docs/transformers/model_doc/llama) for requesting access and converting them to a huggingface-compatible format.
+* Anudesh
+* wikiHow
+* Flan v2 (100k sample subset)
+* Dolly
+* Anthropic-HHH (5k sample subset)
+* OpenAssistant v1
+* LymSys-Chat (50k sample subset)
 
-### Finetuning
+We have put together the above datasets and it can be accessed from [Hugging Face](https://huggingface.co/datasets/ai4bharat/indic-instruct-data-v0.1)
 
-You can use the following command to run instruction tuning (finetuning a pretrained model to follow instructions):
 
-```bash
-./scripts/finetune_with_accelerate.sh
+
+```
+python3 reformat_indic_instruct_data.py
 ```
 
-Make sure to adjust `model_name_or_path`, `tokenizer_name`, `train_file`, and `output_dir` to your models / data / setting. By default, this uses `deepspeed` with `accelerate`.
-
-### Parameter-Efficient Finetuning
-
-We support [LoRA](https://arxiv.org/abs/2106.09685) finetuning, wherein only a small number of parameters are updated, resulting in faster and cheaper training. For even more efficiency, we also support [QLoRA](https://arxiv.org/abs/2305.14314) finetuning, wherein the non-trained (underlying) model parameters are quantised during 4-bit training. This means you can train a 70b Llama model on a single 80GB A100! Please refer to the respective papers for more details.
-
-Please also note you cannot currently run QLoRA with model parallelism - only data-parallel training is supported, so you cannot train a model that does not fit on one GPU. For LoRA, you can use deepspeed + zero-3 to achieve model parallelism (and FSDP is not currently supported).
-
-Please see `./scripts/finetune_lora_with_accelerate.sh` and `./scripts/finetune_qlora_with_accelerate.sh` for example hyperparameters. We found a larger rank (e.g. 256) and higher learning rate (e.g. 2e-4) worked best. Additionally, we found that QLoRA tended to always achieve similar results to LoRA, while LoRA itself sometimes fell behind full-finetuning, especially in long, complex generation tasks. However, for most purposes, LoRA training essentially matches full-finetuning performance. Curiously, we found that merging QLoRA modules back into the non-quantised model tended to result in slightly better performance.
-
-## Released Checkpoints
-
-We provide a number of model checkpoints that we trained. You can find them on Hugging Face [here](https://huggingface.co/models?other=arxiv:2306.04751). Here are some quick links to the checkpoints that are finetuned from LLaMa 1:
-
-| **Datasets ↓ Model Sizes →**                | **7B**                                                                         | **13B**                                                                         | **30B**                                                            | **65B**                                                            |
-|--------------------------|--------------------------------------------------------------------------------|---------------------------------------------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------|
-| SuperNI                  | [link](https://huggingface.co/allenai/open-instruct-sni-7b)                    | [link](https://huggingface.co/allenai/open-instruct-sni-13b)                    |                                                                    |                                                                    |
-| CoT                      | [link](https://huggingface.co/allenai/open-instruct-cot-7b)                    | [link](https://huggingface.co/allenai/open-instruct-cot-13b)                    |                                                                    |                                                                    |
-| Flan V2                  | [link](https://huggingface.co/allenai/open-instruct-flan-v2-7b)                | [link](https://huggingface.co/allenai/open-instruct-flan-v2-13b)                |                                                                    |                                                                    |
-| Dolly                    | [link](https://huggingface.co/allenai/open-instruct-dolly-7b)                  | [link](https://huggingface.co/allenai/open-instruct-dolly-13b)                  |                                                                    |                                                                    |
-| Open Assistant 1         | [link](https://huggingface.co/allenai/open-instruct-oasst1-7b)                 | [link](https://huggingface.co/allenai/open-instruct-oasst1-13b)                 |                                                                    |                                                                    |
-| ShareGPT                 | [link](https://huggingface.co/allenai/open-instruct-sharegpt-7b)               | [link](https://huggingface.co/allenai/open-instruct-sharegpt-13b)               | [link](https://huggingface.co/allenai/open-instruct-sharegpt-30b)  | [link](https://huggingface.co/allenai/open-instruct-sharegpt-65b)  |
-| Self-instruct (original) | [link](https://huggingface.co/allenai/open-instruct-self-instruct-7b)          | [link](https://huggingface.co/allenai/open-instruct-self-instruct-13b)          |                                                                    |                                                                    |
-| Unnatural Instructions   | [link](https://huggingface.co/allenai/open-instruct-unnatural-instructions-7b) | [link](https://huggingface.co/allenai/open-instruct-unnatural-instructions-13b) |                                                                    |                                                                    |
-| Alpaca                   | [link](https://huggingface.co/allenai/open-instruct-stanford-alpaca-7b)        | [link](https://huggingface.co/allenai/open-instruct-stanford-alpaca-13b)        |                                                                    |                                                                    |
-| Code-Alpaca              | [link](https://huggingface.co/allenai/open-instruct-code-alpaca-7b)            | [link](https://huggingface.co/allenai/open-instruct-code-alpaca-13b)            |                                                                    |                                                                    |
-| GPT4-Alpaca              | [link](https://huggingface.co/allenai/open-instruct-gpt4-alpaca-7b)            | [link](https://huggingface.co/allenai/open-instruct-gpt4-alpaca-13b)            |                                                                    |                                                                    |
-| Baize                    | [link](https://huggingface.co/allenai/open-instruct-baize-7b)                  | [link](https://huggingface.co/allenai/open-instruct-baize-13b)                  |                                                                    |                                                                    |
-| Human-Mix                | [link](https://huggingface.co/allenai/open-instruct-human-mix-7b)              | [link](https://huggingface.co/allenai/open-instruct-human-mix-13b)              | [link](https://huggingface.co/allenai/open-instruct-human-mix-30b) | [link](https://huggingface.co/allenai/open-instruct-human-mix-65b) |
-| **Tulu**                 | [link](https://huggingface.co/allenai/tulu-7b)                                 | [link](https://huggingface.co/allenai/tulu-13b)                                 | [link](https://huggingface.co/allenai/tulu-30b)                    | [link](https://huggingface.co/allenai/tulu-65b)                    |
-
-We also trained Pythia and OPT models on the Tulu mixture (aka the Human+GPT mixture), and they are available here:
-
-- [Pythia 6.9B Tulu](https://huggingface.co/allenai/open-instruct-pythia-6.9b-tulu)
-- [OPT 6.7B Tulu](https://huggingface.co/allenai/open-instruct-opt-6.7b-tulu)
-
-
-### Weight diff script
-
-Some of the checkpoints are released as weight diffs to the base model (mostly for LLaMa 1). We use a slightly modified form of the [Alpaca weight diff script](https://github.com/tatsu-lab/stanford_alpaca/blob/main/weight_diff.py), which runs the same.
-
-To merge a model:
-1. Download the relevant LLaMa model and convert it to Hugging Face format (see above).
-2. Download our repository and install the right dependencies (see above).
-3. Download the model diff you want.
-4. Run the command below:
-
-```bash
-python scripts/weight_diff.py recover --path_raw ${hf_llama_path} --path_tuned ${output_path} --path_diff ${diff_location}
-```
 
 ## Evaluation
 
-### Benchmark-based eval
+We have evaluated on standard Indic and English benchmarks to assess the capabilities of our model. The benchmarks are:
 
-We provide the scripts for running evaluation of Huggingface/OpenAI models on a list of standard benchmarks targeting for the core capabilities of large language models. These benchmakrs include:
 
-- [MMLU](https://github.com/hendrycks/test)
-- [Grade School Math (GSM)](https://github.com/openai/grade-school-math)
-- [Big-Bench Hard (BBH)](https://github.com/suzgunmirac/BIG-Bench-Hard/tree/main)
-- [TydiQA](https://github.com/google-research-datasets/tydiqa)
-- [Codex HumanEval](https://github.com/openai/human-eval/tree/master)
-- [ToxiGen](https://github.com/microsoft/TOXIGEN)
+* Indic NLU and Commonsense Reasoning tasks
+    * IndicSentiment
+    * IndicCOPA
+    * IndicXNLI
+    * IndicXParaphrase
+* Indic NLG
+    * IndicQA
+    * IndicHeadlineGeneration
+    * IndicWikiBio
+* English NLU and Commonsense Reasoning tasks
+    * MMLU
+    * BoolQ
+    * ARC Easy (Both Easy and Challenge subsets)
+    * Hellaswag
+* English-Hindi Translation
+    * Flores
+    * IN22-Gen
 
-We are working on including more promising benchmarks into this list. Please stay tuned!
+In addition, we also evaluate on the Indic benchmarks using the translate-test approach ie. evaluating the Hindi language benchmarks by translating it to English on an English model. For this, we use the LLaMA-2 7B chat model. Note that OpenHathi base itself was finetuned on LLaMA-2 7B base, hence it was appropriate to compare our model against its English counterpart.
 
-You can use the following script to download all the evaluation data:
+Similarly, we translate the English benchmarks to Hindi using IndicTrans2 and evaluate them on our model. Note that both OpenHathi and Airavata were trained bilingually on English and Hindi, so they support generation in both languages.
 
+You would have to request access to use the LLaMA variants and log in to the huggingface hub (or pass a token). This process is detailed in the [Hugging Face documentation](https://huggingface.co/docs/transformers/model_doc/llama).
+
+### Example
+The evaluation scripts for the benchmarks listed can be found at `scripts/indic_eval/name_of_the_task.sh` for Indic benchmarks and `scripts/translate_test_eval/name_of_the_task.sh` for translate-test. The following command shows how you can evaluate on IndicSentiment
 ```bash
-./scripts/prepare_eval_data.sh
+# Evaluation on IndicSentiment (Hindi) on a 5-shot setting
+python3 -m eval.indicsentiment.run_eval \
+    --ntrain 5 \
+    --save_dir "results/indicsentiment/airavata-5shot" \
+    --model_name_or_path ai4bharat/airavata \
+    --tokenizer_name_or_path ai4bharat/airavata \
+    --eval_batch_size 4
+
+# Evaluation on IndicSentiment (Translate-test) on a 5-shot setting
+python3 -m eval.indicsentiment.run_translate_test_eval \
+    --ntrain 5 \
+    --save_dir "results/translate_test/indicsentiment/llama2-chat-5shot" \
+    --model_name_or_path meta-llama/Llama-2-7b-chat-hf \
+    --tokenizer_name_or_path meta-llama/Llama-2-7b-chat-hf \
+    --eval_batch_size 4
 ```
 
-Evaluation scripts for different datasets are put under `./scripts`. For example, you can use the following command to run the MMLU evaluation script:
+## Released Checkpoint(s)
 
-```bash
-./scripts/eval/mmlu.sh
-```
+Our chat model is made available on [Hugging Face](https://huggingface.co/ai4bharat/models/airavata).
 
-### Model-based eval
+As for the amount of parameters, LLaMA-2 7B was used to train the OpenHathi (and subsequently Airavata), hence it comprises of **7 billion parameters** in total.
 
-We support using GPT4 to evaluate the quality of model's response following the GPT4 evaluation protocol proposed in [AlpacaFarm](https://arxiv.org/abs/2305.14387). To run this AlpacaFarm eval, please make sure you install our fork of AlpacaFarm (https://github.com/hamishivi/alpaca_farm) and use the following script:
-
-```bash
-python eval/alpaca_farm_eval.py --model <model> --batch_size 8
-```
-
-Please check the script for more details on the script itself!
-
-### Human evaluation
-
-We will release our human evaluation interface and data soon!
-
-## Licensing
-
-This codebase is licensed under Apache 2.0 as given in [LICENSE](./LICENSE).
-
-The license we use for the models released (along with the base model licenses) can be found in [model_licenses/tulu_license.txt](./model_licenses/tulu_license.txt) - just replace `<MODELNAME>` with the actual model name (i.e., the name on HuggingFace).
 
 ## Citation
 
 If you used this repository or our models, please cite our work:
 
 ```bibtex
-@misc{wang2023far,
-   title={How Far Can Camels Go? Exploring the State of Instruction Tuning on Open Resources}, 
-   author={Yizhong Wang and Hamish Ivison and Pradeep Dasigi and Jack Hessel and Tushar Khot and Khyathi Raghavi Chandu and David Wadden and Kelsey MacMillan and Noah A. Smith and Iz Beltagy and Hannaneh Hajishirzi},
-   year={2023},
-   eprint={2306.04751},
-   archivePrefix={arXiv},
-   primaryClass={cs.CL}
+@misc{airavata2024,
+  title = {Introducing Airavata: Hindi Instruction-tuned Chat Model},
+  url = {https://ai4bharat.github.io/airavata},
+  author = {Jay Gala and Thanmay Jayakumar and Jaavid Aktar Husain and Aswanth Kumar and Mohammed Safi Ur Rahman Khan and Diptesh Kanojia and Ratish Puduppully and Mitesh Khapra and Raj Dabre and Rudra Murthy and Anoop Kunchukuttan},
+  month = {January},
+  year = {2024}
 }
 ```

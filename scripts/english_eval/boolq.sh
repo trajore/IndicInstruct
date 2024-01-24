@@ -27,14 +27,14 @@ python3 -m eval.boolq.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/airavata"
+model_name_or_path="ai4bharat/Airavatha"
 
-echo "evaluating airavata on boolq ..."
+echo "evaluating airavatha on boolq ..."
 
 # zero-shot
 python3 -m eval.boolq.run_eval \
     --ntrain 0 \
-    --save_dir "results/boolq/airavata-0shot" \
+    --save_dir "results/boolq/airavatha-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -44,7 +44,7 @@ python3 -m eval.boolq.run_eval \
 # 5-shot
 python3 -m eval.boolq.run_eval \
     --ntrain 5 \
-    --save_dir "results/boolq/airavata-5shot" \
+    --save_dir "results/boolq/airavatha-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
@@ -78,14 +78,14 @@ python3 -m eval.boolq.run_translated_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/airavata"
+model_name_or_path="ai4bharat/Airavatha"
 
-echo "evaluating airavata on boolq ..."
+echo "evaluating airavatha on boolq ..."
 
 # zero-shot
 python3 -m eval.boolq.run_translated_eval \
     --ntrain 0 \
-    --save_dir "results/boolq-hi/airavata-0shot" \
+    --save_dir "results/boolq-hi/airavatha-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 4 \
@@ -95,7 +95,7 @@ python3 -m eval.boolq.run_translated_eval \
 # 5-shot
 python3 -m eval.boolq.run_translated_eval \
     --ntrain 5 \
-    --save_dir "results/boolq-hi/airavata-5shot" \
+    --save_dir "results/boolq-hi/airavatha-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \

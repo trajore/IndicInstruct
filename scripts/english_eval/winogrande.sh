@@ -14,14 +14,14 @@ python3 -m eval.winogrande.run_eval \
     --eval_batch_size 8
 
 
-model_name_or_path="ai4bharat/airavata"
+model_name_or_path="ai4bharat/Airavatha"
 
-echo "evaluating airavata on winogrande ..."
+echo "evaluating airavatha on winogrande ..."
 
 # zero-shot
 python3 -m eval.winogrande.run_eval \
     --ntrain 0 \
-    --save_dir "results/winogrande/airavata-0shot" \
+    --save_dir "results/winogrande/airavatha-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 8 \

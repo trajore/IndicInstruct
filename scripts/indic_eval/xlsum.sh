@@ -15,15 +15,15 @@ python3 -m eval.xlsum.run_eval \
     --eval_batch_size 1
 
 
-model_name_or_path="ai4bharat/Airavatha"
+model_name_or_path="ai4bharat/airavata"
 
-echo "evaluating airavatha on xlsum ..."
+echo "evaluating airavata on xlsum ..."
 
 # 1-shot
 python3 -m eval.xlsum.run_eval \
     --ntrain 1 \
     --max_context_length 512 \
-    --save_dir "results/xlsum-hin/airavatha-1shot" \
+    --save_dir "results/xlsum-hin/airavata-1shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
     --eval_batch_size 1 \
