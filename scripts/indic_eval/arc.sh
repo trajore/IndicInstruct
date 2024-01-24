@@ -13,7 +13,7 @@ echo "evaluating openhathi base on arc easy ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy/openhathi-base-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -23,7 +23,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy/openhathi-base-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -38,7 +38,7 @@ echo "evaluating airavata on arc ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -50,7 +50,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -70,7 +70,7 @@ echo "evaluating openhathi base on arc challenge ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge/openhathi-base-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -80,7 +80,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge/openhathi-base-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -95,7 +95,7 @@ echo "evaluating airavata on arc ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -107,7 +107,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -127,7 +127,7 @@ echo "evaluating openhathi base on indic arc easy ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy-hi/openhathi-base-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -137,7 +137,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy-hi/openhathi-base-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -152,7 +152,7 @@ echo "evaluating airavata on arc ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy-hi/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -164,7 +164,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy-hi/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -184,7 +184,7 @@ echo "evaluating openhathi base on indic arc challenge ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge-hi/openhathi-base-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -194,7 +194,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge-hi/openhathi-base-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -209,7 +209,7 @@ echo "evaluating airavata on arc ..."
 python3 -m eval.arc.run_eval \
     --ntrain 0 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge-hi/airavata-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -221,7 +221,7 @@ python3 -m eval.arc.run_eval \
 python3 -m eval.arc.run_eval \
     --ntrain 5 \
     --dataset "ai4bharat/ai2_arc-hi" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge-hi/airavata-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \

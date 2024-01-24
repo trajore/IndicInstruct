@@ -13,7 +13,7 @@ echo "evaluating llama-2 7b chat on arc easy..."
 python3 -m eval.arc.run_english_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy/llama2-7b-chat-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -25,7 +25,7 @@ python3 -m eval.arc.run_english_eval \
 python3 -m eval.arc.run_english_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
-    --subset "easy"
+    --subset "easy" \
     --save_dir "results/arc-easy/llama2-7b-chat-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -45,7 +45,7 @@ echo "evaluating llama-2 7b chat on arc challenge..."
 python3 -m eval.arc.run_english_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge/llama2-7b-chat-0shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
@@ -57,7 +57,7 @@ python3 -m eval.arc.run_english_eval \
 python3 -m eval.arc.run_english_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
-    --subset "challenge"
+    --subset "challenge" \
     --save_dir "results/arc-challenge/llama2-7b-chat-5shot" \
     --model_name_or_path $model_name_or_path \
     --tokenizer_name_or_path $model_name_or_path \
