@@ -1,6 +1,6 @@
 # Airavata
 
-[📝 Blogpost](https://ai4bharat.github.io/airavata) | [🤗 HF Model](https://huggingface.co/ai4bharat/airavata) [🤗 HF Dataset](https://huggingface.co/datasets/ai4bharat/indic-instruct-data-v0.1) | [🤗 HF Benchmarks](https://huggingface.co/collections/ai4bharat/airavata-evaluation-suite-65b13b7b68165de71ba0b333)
+[📜 Paper](https://arxiv.org/abs/2401.15006) | [📝 Blogpost](https://ai4bharat.github.io/airavata) | [🤗 HF Model](https://huggingface.co/ai4bharat/airavata) [🤗 HF Dataset](https://huggingface.co/datasets/ai4bharat/indic-instruct-data-v0.1) | [🤗 HF Benchmarks](https://huggingface.co/collections/ai4bharat/airavata-evaluation-suite-65b13b7b68165de71ba0b333)
 
 We release Airavata v0.1, a Hindi chat model instruction finetuned on SarvamAI's OpenHathi. Please refer to our [official blogspot](https://ai4bharat.github.io/airavata/) for our model details, dataset creation and evaluation process.
 
@@ -144,11 +144,10 @@ In case of any queries or issues, we recommend you to open issues on the GitHub 
 If you used this repository or our models, please cite our work:
 
 ```bibtex
-@misc{airavata2024,
-  title = {Introducing Airavata: Hindi Instruction-tuned Chat Model},
-  url = {https://ai4bharat.github.io/airavata},
-  author = {Jay Gala and Thanmay Jayakumar and Jaavid Aktar Husain and Aswanth Kumar and Mohammed Safi Ur Rahman Khan and Diptesh Kanojia and Ratish Puduppully and Mitesh Khapra and Raj Dabre and Rudra Murthy and Anoop Kunchukuttan},
-  month = {January},
-  year = {2024}
+@article{gala2024airavata,
+  title   = {Airavata: Introducing Hindi Instruction-tuned LLM},
+  author  = {Jay Gala and Thanmay Jayakumar and Jaavid Aktar Husain and Aswanth Kumar M and Mohammed Safi Ur Rahman Khan and Diptesh Kanojia and Ratish Puduppully and Mitesh M. Khapra and Raj Dabre and Rudra Murthy and Anoop Kunchukuttan},
+  year    = {2024},
+  journal = {arXiv preprint arXiv: 2401.15006}
 }
 ```
