@@ -16,36 +16,25 @@ from eval.utils import (
     dynamic_import_function,
 )
 
-choices = ["A", "B"]
+choices = ["true", "unknown", "false"]
 
-def format_example(premise, choice1, choice2, question, label=None):
-    connector = {"cause": "because", "effect": "therefore"}[question]
-
-    user_prompt = "{premise} {connector}".format(premise=premise, connector=connector)
-    user_prompt += "\nA. {choice1}\nB. {choice2}".format(choice1=choice1, choice2=choice2)
+def format_example(premise, hypothesis, label=None):
+    user_prompt = "Premise: {premise}\nHypothesis: {hypothesis}".format(premise=premise, hypothesis=hypothesis)
     assistant_prompt = "Answer:"
     if label is not None:
         assistant_prompt += " {label}".format(label=label)
     messages = [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
     return messages
 
-
 def gen_prompt(dev_data, k=-1):
-    prompt = "I am hesitating between two options. Help me choose the more likely cause or effect."
+    prompt = f"Answer whether the hypothesis is more likely to be true (entailment), false (contradiction), or unknown (neutral) based on the given premise."
     messages = [{"role": "system", "content": prompt}]
     if k > 0:
         exemplars = dev_data.select(range(k))
         for example in exemplars:
             label = choices[example["label"]]
-            messages.extend(format_example(
-                premise=example["premise"],
-                choice1=example["choice1"],
-                choice2=example["choice2"],
-                question=example["question"],
-                label=label,
-            ))
+            messages += format_example(premise=example["premise"], hypothesis=example["hypothesis"], label=label)
     return messages
-
 
 def main(args):
     random.seed(args.seed)
@@ -65,7 +54,7 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    dataset = load_dataset("Thanmay/indic-copa-hi")
+    dataset = load_dataset("Thanmay/indic-xnli")
     for split in dataset.column_names:
         column_names = dataset[split].column_names
         itv2_column_names = []
@@ -78,25 +67,19 @@ def main(args):
             dataset[split] = dataset[split].rename_column(itv2_column_name, itv2_column_name[8:])
 
     dataset = dataset.map(lambda x: {"premise": x["premise"].strip()})
-    dataset = dataset.map(lambda x: {"choice1": x["choice1"].strip()})
-    dataset = dataset.map(lambda x: {"choice2": x["choice2"].strip()})
+    dataset = dataset.map(lambda x: {"hypothesis": x["hypothesis"].strip()})
+    dev_data = dataset["validation"]
     test_data = dataset["test"]
 
     prompts = []
     for i, example in enumerate(test_data):
-        dev_data = test_data.filter(lambda x: x["premise"] != example["premise"]).shuffle(args.seed)
-        train_prompt = gen_prompt(dev_data, k, chat_formatting_function)
         k = args.ntrain
-        prompt_end = format_example(
-            premise=example["premise"],
-            choice1=example["choice1"],
-            choice2=example["choice2"],
-            question=example["question"],
-        )
+        prompt_end = format_example(premise=example["premise"], hypothesis=example["hypothesis"])
+        train_prompt = gen_prompt(dev_data, k)
         prompt = train_prompt + prompt_end
 
         if args.use_chat_format:
-            prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
+            prompt = chat_formatting_function(prompt)
         else:
             prompt = "\n\n".join([x["content"] for x in prompt])
 
@@ -104,14 +87,13 @@ def main(args):
         # make sure every prompt is less than 2048 tokens
         while len(tokenized_prompt) > 2048:
             k -= 1
-
             train_prompt = gen_prompt(dev_data, k)
             prompt = train_prompt + prompt_end
+
             if args.use_chat_format:
-                prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
+                prompt = chat_formatting_function(prompt)
             else:
                 prompt = "\n\n".join([x["content"] for x in prompt])
-
 
             tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
         prompts.append(prompt)
@@ -134,9 +116,9 @@ def main(args):
     predictions = [pred_index for pred_index in pred_indices]
     metrics = {
         "accuracy": accuracy_score(ground_truths, predictions),
-        "precision": precision_score(ground_truths, predictions),
-        "recall": recall_score(ground_truths, predictions),
-        "f1": f1_score(ground_truths, predictions),
+        "precision": precision_score(ground_truths, predictions, average="macro"),
+        "recall": recall_score(ground_truths, predictions, average="macro"),
+        "f1": f1_score(ground_truths, predictions, average="macro"),
     }
     for k, v in metrics.items():
         print(f"{k}: {v:.4f}")
@@ -151,32 +133,9 @@ if __name__ == "__main__":
     parser.add_argument("--ntrain", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--lang",
-        type=str,
-        default="hi",
-        choices=[
-            "as",
-            "bn",
-            "en",
-            "gom",
-            "gu",
-            "hi",
-            "kn",
-            "mai",
-            "ml",
-            "mr",
-            "ne",
-            "or",
-            "pa",
-            "sa",
-            "sat",
-            "sd",
-            "ta",
-            "te",
-            "ur",
-        ],
+        "--lang", type=str, default="hi", choices=["as", "bn", "gu", "hi", "kn", "ml", "mr", "or", "pa", "te"]
     )
-    parser.add_argument("--save_dir", type=str, default="results/indiccopa/llama-7B/")
+    parser.add_argument("--save_dir", type=str, default="results/indicxnli/llama-7B/")
     parser.add_argument(
         "--model_name_or_path",
         type=str,

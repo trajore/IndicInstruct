@@ -42,7 +42,7 @@ def main(args):
 
         if args.use_chat_format:
             chat_formatting_function = dynamic_import_function(args.chat_formatting_function)
-            prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
+            prompt = chat_formatting_function(prompt)
         else:
             prompt = "\n\n".join([x["content"] for x in prompt])
 

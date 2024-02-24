@@ -17,18 +17,6 @@ from eval.utils import (
 )
 from bleurt import score
 
-lang_map = {
-    "as": "Assamese",
-    "bn": "Bengali",
-    "kn": "Kannada",
-    "hi": "Hindi",
-    "ml": "Malayalam",
-    "or": "Oriya",
-    "pa": "Punjabi",
-    "ta": "Tamil",
-    "te": "Telugu",
-}
-
 
 def trim_context(context, max_context_length, tokenizer):
     tokenized_context = tokenizer.encode(context, add_special_tokens=False)
@@ -39,10 +27,9 @@ def trim_context(context, max_context_length, tokenizer):
     return context
 
 
-def format_example(infobox, lang, summary=None):
-    lang = "English" #lang_map[lang].capitalize()
-    user_prompt = f"{lang} infobox: {infobox}"
-    assistant_prompt = f"\n{lang} summary:"
+def format_example(text, lang, summary=None):
+    user_prompt = f"{lang.capitalize()} article: {text}"
+    assistant_prompt = f"\n{lang.capitalize()} summary:"
     if summary is not None:
         assistant_prompt += f" {summary}"
     messages = [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
@@ -50,14 +37,13 @@ def format_example(infobox, lang, summary=None):
 
 
 def gen_prompt(dev_data, lang, max_context_length, tokenizer, k=-1):
-    prompt = f"The following text contains information collected from wikipedia infoboxes of well-known people. Generate the summary in natural language using the given information. Summary should be in one sentence only."
+    prompt = f"Summarize the following {"English".capitalize()} article(s) as accurately as possible in few sentences."
     messages = [{"role": "system", "content": prompt}]
-
     if k > 0:
         exemplars = dev_data.select(range(k))
         for example in exemplars:
             messages += format_example(
-                trim_context(example["infobox"], max_context_length, tokenizer),
+                text=trim_context(example["text"], max_context_length=max_context_length, tokenizer=tokenizer),
                 lang=lang,
                 summary=example["summary"],
             )
@@ -82,7 +68,7 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    dataset = load_dataset("Thanmay/indic-wikibio-hi", args.lang)
+    dataset = load_dataset("Thanmay/xlsum-hi")
     for split in dataset.column_names:
         column_names = dataset[split].column_names
         itv2_column_names = []
@@ -94,26 +80,24 @@ def main(args):
         for itv2_column_name in itv2_column_names:
             dataset[split] = dataset[split].rename_column(itv2_column_name, itv2_column_name[8:])
             
-    dataset = dataset.map(lambda x: {"infobox": x["infobox"].strip()})
     dataset = dataset.map(lambda x: {"summary": x["summary"].strip()})
-    dev_data = dataset["validation"]
-    test_data = dataset["test"]
+    dataset = dataset.map(lambda x: {"text": x["text"].strip()})
+    dev_data = dataset["validation"].select(range(min(len(dataset["validation"]), args.n_instances)))
+    test_data = dataset["test"].select(range(min(len(dataset["test"]), args.n_instances)))
 
     prompts = []
     for i, example in enumerate(test_data):
         k = args.ntrain
         prompt_end = format_example(
-            trim_context(example["infobox"], args.max_context_length, tokenizer), lang=args.lang
+            text=trim_context(example["text"], args.max_context_length, tokenizer), lang=args.lang
         )
         train_prompt = gen_prompt(dev_data, args.lang, args.max_context_length, tokenizer, k)
         prompt = train_prompt + prompt_end
 
         if args.use_chat_format:
-            prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
+            prompt = chat_formatting_function(prompt)
         else:
             prompt = "\n\n".join([x["content"] for x in prompt])
-        
-        prompts.append(prompt)
 
     outputs = generate_completions(
         model=model,
@@ -124,9 +108,9 @@ def main(args):
         stop_id_sequences=None,
     )
     # remove unnecessary space
-    outputs = [output.strip().split("\n")[0] for output in outputs]
+    outputs = [output.strip().split("\n", "") for output in outputs]
 
-    with open(os.path.join(args.save_dir, f"indicwikibio_{args.lang}_predictions.jsonl"), "w") as fout:
+    with open(os.path.join(args.save_dir, f"xlsum_{args.lang}_predictions.jsonl"), "w") as fout:
         for example, output in zip(test_data, outputs):
             example["prediction_text"] = output
             fout.write(json.dumps(example) + "\n")
@@ -165,9 +149,12 @@ if __name__ == "__main__":
     parser.add_argument("--ntrain", type=int, default=1, help="number of examples to use for few-shot evaluation.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--lang", type=str, default="hi", choices=["as", "bn", "kn", "hi", "ml", "or", "pa", "ta", "te"]
+        "--lang",
+        type=str,
+        default="hindi",
+        choices=["bengali", "english", "gujarati", "hindi", "marathi", "nepali", "punjabi", "tamil", "telugu", "urdu"],
     )
-    parser.add_argument("--save_dir", type=str, default="results/indicwikibio/llama-7B/")
+    parser.add_argument("--save_dir", type=str, default="results/xlsum/llama-7B/")
     parser.add_argument(
         "--bleurt_model_name_or_path",
         type=str,
@@ -188,6 +175,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--max_context_length", type=int, default=768, help="maximum number of tokens in the context passage."
+    )
+    parser.add_argument(
+        "--n_instances",
+        type=int,
+        default=1000,
+        help="if specified, a maximum of n_instances will be used for the evaluation."
     )
     parser.add_argument("--eval_batch_size", type=int, default=1, help="batch size for evaluation.")
     parser.add_argument(

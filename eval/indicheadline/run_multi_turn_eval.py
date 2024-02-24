@@ -8,52 +8,59 @@ import time
 import json
 from tqdm import tqdm
 import time
+import evaluate
 from datasets import load_dataset
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from eval.utils import (
-    get_next_word_predictions,
+    generate_completions,
     load_hf_lm_and_tokenizer,
     dynamic_import_function,
 )
+from bleurt import score
 
-choices = ["1", "2"]
 lang_map = {
     "as": "Assamese",
     "bn": "Bengali",
     "gu": "Gujarati",
-    "hi": "Hindi",
     "kn": "Kannada",
+    "hi": "Hindi",
     "ml": "Malayalam",
     "mr": "Marathi",
-    "or": "Odia",
+    "or": "Oriya",
     "pa": "Punjabi",
+    "ta": "Tamil",
     "te": "Telugu",
 }
 
 
-def format_example(english, sentence1, sentence2, lang, label=None):
-    user_prompt = "{english}\nThis can be paraphrased in {lang} as".format(english=english, lang="English") #lang=lang_map[lang])
-    user_prompt += "\n1. {sentence1}\n2. {sentence2}".format(sentence1=sentence1, sentence2=sentence2)
-    assistant_prompt = "Answer:"
-    if label is not None:
-        assistant_prompt += " {label}".format(label=label)
+def trim_context(context, max_context_length, tokenizer):
+    tokenized_context = tokenizer.encode(context, add_special_tokens=False)
+    if len(tokenized_context) > max_context_length:
+        context = tokenizer.decode(
+            tokenized_context[:max_context_length], skip_special_tokens=True, clean_up_tokenization_spaces=True
+        )
+    return context
+
+
+def format_example(input, lang, headline=None):
+    lang = "English" # lang_map[lang]
+    user_prompt = f"{lang.capitalize()} article: {input}"
+    assistant_prompt = f"\n{lang.capitalize()} headline:"
+    if headline is not None:
+        assistant_prompt += f" {headline}"
     messages = [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
     return messages
 
 
-def gen_prompt(dev_data, lang, k=-1):
-    prompt = f"Read the following text and select the most accurate paraphrase from the two choices."
+def gen_prompt(dev_data, lang, max_context_length, tokenizer, k=-1):
+    prompt = f"Generate a headline for the following article(s) as accurately as possible."
     messages = [{"role": "system", "content": prompt}]
     if k > 0:
         exemplars = dev_data.select(range(k))
         for example in exemplars:
-            label = choices[example["label"]]
             messages += format_example(
-                english=example["english"],
-                sentence1=example["sentence1"],
-                sentence2=example["sentence2"],
+                input=trim_context(example["input"], max_context_length, tokenizer),
                 lang=lang,
-                label=label,
+                headline=example["target"],
             )
     return messages
 
@@ -75,8 +82,8 @@ def main(args):
         os.makedirs(args.save_dir)
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
-    
-    dataset = load_dataset("Thanmay/indic-xpara")
+
+    dataset = load_dataset("Thanmay/indic-hgen-hi")
     for split in dataset.column_names:
         column_names = dataset[split].column_names
         itv2_column_names = []
@@ -87,66 +94,64 @@ def main(args):
         dataset[split] = dataset[split].remove_columns(remove_column_names)
         for itv2_column_name in itv2_column_names:
             dataset[split] = dataset[split].rename_column(itv2_column_name, itv2_column_name[8:])
-    
-    dataset = dataset.map(lambda x: {"english": x["english"].strip()})
-    dataset = dataset.map(lambda x: {"sentence1": x["sentence1"].strip()})
-    dataset = dataset.map(lambda x: {"sentence2": x["sentence2"].strip()})
-    test_data = dataset["test"]
-    # test_data = test_data.select(range(100))
+            
+    dataset = dataset.map(lambda x: {"input": x["input"].strip()})
+    dataset = dataset.map(lambda x: {"target": x["target"].strip()})
+    dev_data = dataset["validation"].select(range(min(len(dataset["validation"]), args.n_instances)))
+    test_data = dataset["test"].select(range(min(len(dataset["test"]), args.n_instances)))
 
     prompts = []
     for i, example in enumerate(test_data):
-        dev_data = test_data.filter(lambda x: x["english"] != example["english"]).shuffle(args.seed)
         k = args.ntrain
         prompt_end = format_example(
-            english=example["english"], sentence1=example["sentence1"], sentence2=example["sentence2"], lang=args.lang
+            input=trim_context(example["input"], args.max_context_length, tokenizer), lang=args.lang
         )
-        train_prompt = gen_prompt(dev_data, args.lang, k)
+        train_prompt = gen_prompt(dev_data, args.lang, args.max_context_length, tokenizer, k)
         prompt = train_prompt + prompt_end
-
+        
         if args.use_chat_format:
-            prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
+            prompt = chat_formatting_function(prompt)
         else:
             prompt = "\n\n".join([x["content"] for x in prompt])
-
-        tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
-        # make sure every prompt is less than 2048 tokens
-        while len(tokenized_prompt) > 2048:
-            k -= 1
-            train_prompt = gen_prompt(dev_data, k)
-            prompt = train_prompt + prompt_end
-
-            if args.use_chat_format:
-                prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
-            else:
-                prompt = "\n\n".join([x["content"] for x in prompt])
-
-            tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
+        
         prompts.append(prompt)
 
-    print(prompts[0])
-
-    # get the answer for all examples
-    # adding a prefix space here, as that's expected from the prompt
-    # TODO: should raise a warning if this returns more than one token
-    answer_choice_ids = [tokenizer.encode(answer_choice, add_special_tokens=False)[-1] for answer_choice in choices]
-    pred_indices, all_probs = get_next_word_predictions(
-        model,
-        tokenizer,
-        prompts,
-        candidate_token_ids=answer_choice_ids,
-        return_token_predictions=False,
+    outputs = generate_completions(
+        model=model,
+        tokenizer=tokenizer,
+        prompts=prompts,
+        max_new_tokens=50,
         batch_size=args.eval_batch_size,
+        stop_id_sequences=None,
     )
+    # remove unnecessary space
+    outputs = [output.strip().split("\n")[0] for output in outputs]
 
-    # get the metrics
-    ground_truths = [example["label"] for example in test_data]
-    predictions = [pred_index for pred_index in pred_indices]
+    with open(os.path.join(args.save_dir, f"indicheadline_{args.lang}_predictions.jsonl"), "w") as fout:
+        for example, output in zip(test_data, outputs):
+            example["prediction_text"] = output
+            fout.write(json.dumps(example) + "\n")
+
+    # flush all the GPU memory
+    del model
+    torch.cuda.empty_cache()
+    import gc
+
+    gc.collect()
+
+    print("Calculating Rouge and BLEURT ...")
+    rouge = evaluate.load("rouge")
+    bleurt = score.BleurtScorer(args.bleurt_model_name_or_path)
+
+    predictions = [output for output in outputs]
+    references = [example["target"] for example in test_data]
+
+    rouge_metrics = rouge.compute(predictions=predictions, references=references)
     metrics = {
-        "accuracy": accuracy_score(ground_truths, predictions),
-        "precision": precision_score(ground_truths, predictions),
-        "recall": recall_score(ground_truths, predictions),
-        "f1": f1_score(ground_truths, predictions),
+        "rouge1": rouge_metrics["rouge1"],
+        "rouge2": rouge_metrics["rouge2"],
+        "rougeL": rouge_metrics["rougeL"],
+        "bleurt": np.mean(bleurt.score(candidates=predictions, references=references)),
     }
     for k, v in metrics.items():
         print(f"{k}: {v:.4f}")
@@ -158,16 +163,22 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ntrain", type=int, default=5)
+    parser.add_argument("--ntrain", type=int, default=1, help="number of examples to use for few-shot evaluation.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--lang", type=str, default="hi", choices=["as", "bn", "gu", "hi", "kn", "ml", "mr", "or", "pa", "te"]
+        "--lang", type=str, default="hi", choices=["as", "bn", "gu", "kn", "hi", "ml", "mr", "or", "pa", "ta", "te"]
     )
-    parser.add_argument("--save_dir", type=str, default="results/indicxparaphrase/llama-7B/")
+    parser.add_argument("--save_dir", type=str, default="results/indicheadline/llama-7B/")
+    parser.add_argument(
+        "--bleurt_model_name_or_path",
+        type=str,
+        default="/data/jaygala/bleurt/BLEURT-20",
+        help="bleurt model to load for evaluation.",
+    )
     parser.add_argument(
         "--model_name_or_path",
         type=str,
-        default=None,
+        default="None",
         help="if specified, we will load the model to generate the predictions.",
     )
     parser.add_argument(
@@ -175,6 +186,15 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="if specified, we will load the tokenizer from here.",
+    )
+    parser.add_argument(
+        "--max_context_length", type=int, default=768, help="maximum number of tokens in the context passage."
+    )
+    parser.add_argument(
+        "--n_instances",
+        type=int,
+        default=1000,
+        help="if specified, a maximum of n_instances will be used for the evaluation."
     )
     parser.add_argument("--eval_batch_size", type=int, default=1, help="batch size for evaluation.")
     parser.add_argument(

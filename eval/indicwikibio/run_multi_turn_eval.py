@@ -1,7 +1,6 @@
 import argparse
 import os
 import random
-from sklearn import metrics
 import torch
 import numpy as np
 import pandas as pd
@@ -16,18 +15,18 @@ from eval.utils import (
     load_hf_lm_and_tokenizer,
     dynamic_import_function,
 )
+from bleurt import score
 
-templates = {
-    "with_context": (
-        "Answer the following question based on the information in the given passage.",
-        "Passage:",
-        "Question:",
-        "Answer:",
-    ),
-    "no_context": (
-        "Answer the following question.",
-        "Question:",
-        "Answer:"),
+lang_map = {
+    "as": "Assamese",
+    "bn": "Bengali",
+    "kn": "Kannada",
+    "hi": "Hindi",
+    "ml": "Malayalam",
+    "or": "Oriya",
+    "pa": "Punjabi",
+    "ta": "Tamil",
+    "te": "Telugu",
 }
 
 
@@ -38,6 +37,31 @@ def trim_context(context, max_context_length, tokenizer):
             tokenized_context[:max_context_length], skip_special_tokens=True, clean_up_tokenization_spaces=True
         )
     return context
+
+
+def format_example(infobox, lang, summary=None):
+    lang = "English" #lang_map[lang].capitalize()
+    user_prompt = f"{lang} infobox: {infobox}"
+    assistant_prompt = f"\n{lang} summary:"
+    if summary is not None:
+        assistant_prompt += f" {summary}"
+    messages = [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
+    return messages
+
+
+def gen_prompt(dev_data, lang, max_context_length, tokenizer, k=-1):
+    prompt = f"The following text contains information collected from wikipedia infoboxes of well-known people. Generate the summary in natural language using the given information. Summary should be in one sentence only."
+    messages = [{"role": "system", "content": prompt}]
+
+    if k > 0:
+        exemplars = dev_data.select(range(k))
+        for example in exemplars:
+            messages += format_example(
+                trim_context(example["infobox"], max_context_length, tokenizer),
+                lang=lang,
+                summary=example["summary"],
+            )
+    return messages
 
 
 def main(args):
@@ -58,8 +82,7 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-
-    dataset = load_dataset("Thanmay/indic-qa-hindi")
+    dataset = load_dataset("Thanmay/indic-wikibio-hi", args.lang)
     for split in dataset.column_names:
         column_names = dataset[split].column_names
         itv2_column_names = []
@@ -70,73 +93,28 @@ def main(args):
         dataset[split] = dataset[split].remove_columns(remove_column_names)
         for itv2_column_name in itv2_column_names:
             dataset[split] = dataset[split].rename_column(itv2_column_name, itv2_column_name[8:])
-
-    dataset = dataset.map(lambda x: {"context": x["context"].strip()})
-    dataset = dataset.map(lambda x: {"question": x["question"].strip()})
+            
+    dataset = dataset.map(lambda x: {"infobox": x["infobox"].strip()})
+    dataset = dataset.map(lambda x: {"summary": x["summary"].strip()})
+    dev_data = dataset["validation"]
     test_data = dataset["test"]
 
     prompts = []
     for i, example in enumerate(test_data):
-        dev_data = test_data.filter(lambda x: x["question"] != example["question"]).shuffle(args.seed)
         k = args.ntrain
-
-        if args.no_context:
-            prompt, q_template, a_template = templates["no_context"]
-            p_template = ""
-        else:
-            prompt, p_template, q_template, a_template = templates["with_context"]
-
-        if k > 0:
-            train_prompt = [{"role":"system", "content":prompt}]
-            exemplars = dev_data.select(range(k))
-            for dev_example in exemplars:
-                answer = (
-                    "unanswerable" if dev_example["answers"]["text"][0] == "" else dev_example["answers"]["text"][0]
-                )
-                if args.no_context:
-                    user_prompt = q_template + " " + dev_example["question"] + "\n"
-                    assistant_prompt = a_template + " " + answer
-                else:
-                    user_prompt = p_template
-                    + " "
-                    + trim_context(dev_example["context"], args.max_context_length, tokenizer)
-                    + "\n"
-                    + q_template
-                    + " "
-                    + dev_example["question"]
-                    + "\n"
-                    assistant_prompt = a_template + " " + answer
-                train_prompt.extend(
-                    [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
-                )
-
-        if args.no_context:
-            user_prompt = q_template + " " + format(example["question"]) + "\n"
-        else:
-            user_prompt = (
-                p_template
-                + " "
-                + format(trim_context(example["context"], args.max_context_length, tokenizer))
-                + "\n"
-                + q_template
-                + " "
-                + format(example["question"])
-                + "\n"
-            )
-        assistant_prompt = a_template
-        prompt_end = [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
-        
+        prompt_end = format_example(
+            trim_context(example["infobox"], args.max_context_length, tokenizer), lang=args.lang
+        )
+        train_prompt = gen_prompt(dev_data, args.lang, args.max_context_length, tokenizer, k)
         prompt = train_prompt + prompt_end
+
         if args.use_chat_format:
-            prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
+            prompt = chat_formatting_function(prompt)
         else:
             prompt = "\n\n".join([x["content"] for x in prompt])
-
+        
         prompts.append(prompt)
 
-    new_line_token = tokenizer.encode("\n", add_special_tokens=False)[
-        -1
-    ]  # get the last token because the tokenizer may add space tokens at the start.
     outputs = generate_completions(
         model=model,
         tokenizer=tokenizer,
@@ -148,21 +126,32 @@ def main(args):
     # remove unnecessary space
     outputs = [output.strip().split("\n")[0] for output in outputs]
 
-    with open(os.path.join(args.save_dir, f"indicqa_{args.lang}_predictions.jsonl"), "w") as fout:
+    with open(os.path.join(args.save_dir, f"indicwikibio_{args.lang}_predictions.jsonl"), "w") as fout:
         for example, output in zip(test_data, outputs):
             example["prediction_text"] = output
             fout.write(json.dumps(example) + "\n")
 
-    print("Calculating F1, EM ...")
-    metric = evaluate.load("squad")
+    # flush all the GPU memory
+    del model
+    torch.cuda.empty_cache()
+    import gc
 
-    predictions = [{"id": example["id"], "prediction_text": output} for example, output in zip(test_data, outputs)]
-    references = [{"id": example["id"], "answers": example["answers"]} for example in test_data]
-    for i in range(len(references)):
-        if references[i]["answers"]["text"][0] == "":
-            references[i]["answers"]["text"][0] = "unanswerable"
+    gc.collect()
 
-    metrics = metric.compute(predictions=predictions, references=references)
+    print("Calculating Rouge and BLEURT ...")
+    rouge = evaluate.load("rouge")
+    bleurt = score.BleurtScorer(args.bleurt_model_name_or_path)
+
+    predictions = [output for output in outputs]
+    references = [example["summary"] for example in test_data]
+
+    rouge_metrics = rouge.compute(predictions=predictions, references=references)
+    metrics = {
+        "rouge1": rouge_metrics["rouge1"],
+        "rouge2": rouge_metrics["rouge2"],
+        "rougeL": rouge_metrics["rougeL"],
+        "bleurt": np.mean(bleurt.score(candidates=predictions, references=references)),
+    }
     for k, v in metrics.items():
         print(f"{k}: {v:.4f}")
 
@@ -174,17 +163,17 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ntrain", type=int, default=1, help="number of examples to use for few-shot evaluation.")
-    parser.add_argument(
-        "--no_context", action="store_true", help="If given, we're evaluating a model without the gold context passage."
-    )
-    parser.add_argument(
-        "--max_context_length", type=int, default=768, help="maximum number of tokens in the context passage."
-    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--lang", type=str, default="hi", choices=["as", "bn", "gu", "hi", "kn", "ml", "mr", "or", "pa", "ta", "te"]
+        "--lang", type=str, default="hi", choices=["as", "bn", "kn", "hi", "ml", "or", "pa", "ta", "te"]
     )
-    parser.add_argument("--save_dir", type=str, default="results/mmlu/llama-7B/")
+    parser.add_argument("--save_dir", type=str, default="results/indicwikibio/llama-7B/")
+    parser.add_argument(
+        "--bleurt_model_name_or_path",
+        type=str,
+        default="/data/jaygala/bleurt/BLEURT-20",
+        help="bleurt model to load for evaluation.",
+    )
     parser.add_argument(
         "--model_name_or_path",
         type=str,
@@ -196,6 +185,9 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="if specified, we will load the tokenizer from here.",
+    )
+    parser.add_argument(
+        "--max_context_length", type=int, default=768, help="maximum number of tokens in the context passage."
     )
     parser.add_argument("--eval_batch_size", type=int, default=1, help="batch size for evaluation.")
     parser.add_argument(

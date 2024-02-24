@@ -17,35 +17,53 @@ from eval.utils import (
 )
 from bleurt import score
 
+lang_map = {
+    "asm_Beng": "Assamese",
+    "ben_Beng": "Bengali",
+    "brx_Deva": "Bodo",
+    "doi_Deva": "Dogri",
+    "eng_Latn": "English",
+    "guj_Gujr": "Gujarati",
+    "gom_Deva": "Konkani",
+    "hin_Deva": "Hindi",
+    "kan_Knda": "Kannada",
+    "kas_Arab": "Kashmiri",
+    "mai_Deva": "Maithili",
+    "mal_Mlym": "Malayalam",
+    "mar_Deva": "Marathi",
+    "mni_Mtei": "Manipuri",
+    "npi_Deva": "Nepali",
+    "ory_Orya": "Odia",
+    "pan_Guru": "Punjabi",
+    "san_Deva": "Sanskrit",
+    "sat_Olck": "Santali",
+    "snd_Deva": "Sindhi",
+    "tam_Taml": "Tamil",
+    "tel_Telu": "Telugu",
+    "urd_Arab": "Urdu",
+}
 
-def trim_context(context, max_context_length, tokenizer):
-    tokenized_context = tokenizer.encode(context, add_special_tokens=False)
-    if len(tokenized_context) > max_context_length:
-        context = tokenizer.decode(
-            tokenized_context[:max_context_length], skip_special_tokens=True, clean_up_tokenization_spaces=True
-        )
-    return context
 
-
-def format_example(text, lang, summary=None):
-    user_prompt = f"{lang.capitalize()} article: {text}"
-    assistant_prompt = f"\n{lang.capitalize()} summary:"
-    if summary is not None:
-        assistant_prompt += f" {summary}"
+def format_example(src_text, src_lang, tgt_lang, tgt_text=None):
+    user_prompt = f"{lang_map[src_lang]}: {src_text}"
+    assistant_prompt = f"\n{lang_map[tgt_lang]}:"
+    if tgt_text is not None:
+        assistant_prompt += f" {tgt_text}"
     messages = [{"role":"user", "content":user_prompt}, {"role":"assistant", "content":assistant_prompt}]
     return messages
 
 
-def gen_prompt(dev_data, lang, max_context_length, tokenizer, k=-1):
-    prompt = f"Summarize the following {"English".capitalize()} article(s) as accurately as possible in few sentences."
+def gen_prompt(dev_data, src_lang, tgt_lang, k=-1):
+    prompt = f"Translate the following sentence(s) from {lang_map[src_lang]} into {lang_map[tgt_lang]}."
     messages = [{"role": "system", "content": prompt}]
     if k > 0:
         exemplars = dev_data.select(range(k))
         for example in exemplars:
             messages += format_example(
-                text=trim_context(example["text"], max_context_length=max_context_length, tokenizer=tokenizer),
-                lang=lang,
-                summary=example["summary"],
+                src_text=example[f"sentence_{src_lang}"],
+                src_lang=src_lang,
+                tgt_lang=tgt_lang,
+                tgt_text=example[f"sentence_{tgt_lang}"],
             )
     return messages
 
@@ -68,49 +86,60 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    dataset = load_dataset("Thanmay/xlsum-hi")
-    for split in dataset.column_names:
-        column_names = dataset[split].column_names
-        itv2_column_names = []
-        for column_name in column_names:
-            if "itv2 hi" in column_name.lower():
-                itv2_column_names.append(column_name)
-        remove_column_names = [x[8:] for x in itv2_column_names]
-        dataset[split] = dataset[split].remove_columns(remove_column_names)
-        for itv2_column_name in itv2_column_names:
-            dataset[split] = dataset[split].rename_column(itv2_column_name, itv2_column_name[8:])
-            
-    dataset = dataset.map(lambda x: {"summary": x["summary"].strip()})
-    dataset = dataset.map(lambda x: {"text": x["text"].strip()})
-    dev_data = dataset["validation"].select(range(min(len(dataset["validation"]), args.n_instances)))
-    test_data = dataset["test"].select(range(min(len(dataset["test"]), args.n_instances)))
+    dataset = load_dataset(args.dataset, f"{args.src_lang}-{args.tgt_lang}")
+    dataset = dataset.map(
+        lambda x: {
+            f"sentence_{args.src_lang}": x[f"sentence_{args.src_lang}"].strip(),
+            f"sentence_{args.tgt_lang}": x[f"sentence_{args.tgt_lang}"].strip(),
+        }
+    )
+    test_data = dataset["gen"] if args.dataset == "ai4bharat/IN22-Gen" else dataset["conv"]
+    # test_data = test_data.select(range(50))
 
     prompts = []
     for i, example in enumerate(test_data):
+        dev_data = test_data.filter(
+            lambda x: x[f"sentence_{args.src_lang}"] != example[f"sentence_{args.src_lang}"]
+        ).shuffle(args.seed)
         k = args.ntrain
         prompt_end = format_example(
-            text=trim_context(example["text"], args.max_context_length, tokenizer), lang=args.lang
+            src_text=example[f"sentence_{args.src_lang}"], src_lang=args.src_lang, tgt_lang=args.tgt_lang
         )
-        train_prompt = gen_prompt(dev_data, args.lang, args.max_context_length, tokenizer, k)
+        train_prompt = gen_prompt(dev_data, args.src_lang, args.tgt_lang, k)
         prompt = train_prompt + prompt_end
 
         if args.use_chat_format:
-            prompt = chat_formatting_function(prompt)[:-5] # Remove last 5 characters, which is the EOS token (' </s>').
+            prompt = chat_formatting_function(prompt)
         else:
             prompt = "\n\n".join([x["content"] for x in prompt])
+
+        tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
+        # make sure every prompt is less than 2048 tokens
+        while len(tokenized_prompt) > 2048:
+            k -= 1
+            train_prompt = gen_prompt(dev_data, k)
+            prompt = train_prompt + prompt_end
+
+            if args.use_chat_format:
+                prompt = chat_formatting_function(prompt)
+            else:
+                prompt = "\n\n".join([x["content"] for x in prompt])
+
+            tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
+        prompts.append(prompt)
 
     outputs = generate_completions(
         model=model,
         tokenizer=tokenizer,
         prompts=prompts,
-        max_new_tokens=50,
+        max_new_tokens=256,
         batch_size=args.eval_batch_size,
         stop_id_sequences=None,
     )
     # remove unnecessary space
-    outputs = [output.strip().split("\n", "") for output in outputs]
+    outputs = [output.strip().split("\n")[0] for output in outputs]
 
-    with open(os.path.join(args.save_dir, f"xlsum_{args.lang}_predictions.jsonl"), "w") as fout:
+    with open(os.path.join(args.save_dir, f"in22_{args.src_lang}_{args.tgt_lang}_predictions.jsonl"), "w") as fout:
         for example, output in zip(test_data, outputs):
             example["prediction_text"] = output
             fout.write(json.dumps(example) + "\n")
@@ -122,19 +151,21 @@ def main(args):
 
     gc.collect()
 
-    print("Calculating Rouge and BLEURT ...")
-    rouge = evaluate.load("rouge")
+    print("Calculating bleu, chrf, chrf++, bleurt ...")
+    sacrebleu = evaluate.load("sacrebleu")
+    chrf = evaluate.load("chrf")
     bleurt = score.BleurtScorer(args.bleurt_model_name_or_path)
 
     predictions = [output for output in outputs]
-    references = [example["summary"] for example in test_data]
+    references = [[example[f"sentence_{args.tgt_lang}"]] for example in test_data]
 
-    rouge_metrics = rouge.compute(predictions=predictions, references=references)
     metrics = {
-        "rouge1": rouge_metrics["rouge1"],
-        "rouge2": rouge_metrics["rouge2"],
-        "rougeL": rouge_metrics["rougeL"],
-        "bleurt": np.mean(bleurt.score(candidates=predictions, references=references)),
+        "bleu": sacrebleu.compute(predictions=predictions, references=references)["score"],
+        "chrf": chrf.compute(predictions=predictions, references=references)["score"],
+        "chrf2": chrf.compute(predictions=predictions, references=references, word_order=2)["score"],
+        "bleurt": np.mean(
+            bleurt.score(candidates=predictions, references=[ref for sublist in references for ref in sublist])
+        ),
     }
     for k, v in metrics.items():
         print(f"{k}: {v:.4f}")
@@ -146,15 +177,24 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ntrain", type=int, default=1, help="number of examples to use for few-shot evaluation.")
+    parser.add_argument("--ntrain", type=int, default=5, help="number of examples to use for few-shot evaluation.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--lang",
-        type=str,
-        default="hindi",
-        choices=["bengali", "english", "gujarati", "hindi", "marathi", "nepali", "punjabi", "tamil", "telugu", "urdu"],
+        "--dataset", type=str, default="ai4bharat/IN22-Gen", choices=["ai4bharat/IN22-Gen", "ai4bharat/IN22-Conv"]
     )
-    parser.add_argument("--save_dir", type=str, default="results/xlsum/llama-7B/")
+    parser.add_argument(
+        "--src_lang",
+        type=str,
+        default="eng_Latn",
+        choices=list(lang_map.keys()),
+    )
+    parser.add_argument(
+        "--tgt_lang",
+        type=str,
+        default="hin_Deva",
+        choices=list(lang_map.keys()),
+    )
+    parser.add_argument("--save_dir", type=str, default="results/in22-gen/llama-7B/")
     parser.add_argument(
         "--bleurt_model_name_or_path",
         type=str,
@@ -172,15 +212,6 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="if specified, we will load the tokenizer from here.",
-    )
-    parser.add_argument(
-        "--max_context_length", type=int, default=768, help="maximum number of tokens in the context passage."
-    )
-    parser.add_argument(
-        "--n_instances",
-        type=int,
-        default=1000,
-        help="if specified, a maximum of n_instances will be used for the evaluation."
     )
     parser.add_argument("--eval_batch_size", type=int, default=1, help="batch size for evaluation.")
     parser.add_argument(
