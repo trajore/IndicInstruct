@@ -132,6 +132,8 @@ def main(args):
             tokenized_prompt = tokenizer(prompt, truncation=False, add_special_tokens=False).input_ids
         prompts.append(prompt)
 
+    print(prompts[0])
+
     outputs = generate_completions(
         model=model,
         tokenizer=tokenizer,
