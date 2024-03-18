@@ -137,5 +137,8 @@ dmypy.json
 
 # vscode project settings
 .vscode
-
+scripts/data
+*.lock
+scripts/indic_eval/models--ai4bharat--airavata
+scripts/indic_eval/datasets
 .DS_Store

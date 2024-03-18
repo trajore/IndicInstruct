@@ -9,7 +9,6 @@ import json
 from tqdm import tqdm
 import time
 from datasets import load_dataset
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from eval.utils import (
     get_next_word_predictions,
     load_hf_lm_and_tokenizer,
@@ -18,14 +17,12 @@ from eval.utils import (
 
 choices = ["true", "unknown", "false"]
 
-
 def format_example(premise, hypothesis, label=None):
     prompt = "Premise: {premise}\nHypothesis: {hypothesis}".format(premise=premise, hypothesis=hypothesis)
     prompt += "\nAnswer:"
     if label is not None:
         prompt += " {label}\n\n".format(label=label)
     return prompt
-
 
 def gen_prompt(dev_data, k=-1):
     prompt = f"Answer whether the hypothesis is more likely to be true (entailment), false (contradiction), or unknown (neutral) based on the given premise.\n\n"
@@ -35,7 +32,6 @@ def gen_prompt(dev_data, k=-1):
             label = choices[example["label"]]
             prompt += format_example(premise=example["premise"], hypothesis=example["hypothesis"], label=label)
     return prompt
-
 
 def main(args):
     random.seed(args.seed)
@@ -55,14 +51,18 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    dataset = load_dataset("Divyanshu/indicxnli", f"{args.lang}")
+    #dataset = load_dataset("Divyanshu/indicxnli", f"{args.lang}")
+    new_dataset_dir="/home/trajore/IndicInstruct/scripts/indic_eval/indicxnli"
+    dataset = load_dataset(new_dataset_dir,"hi")
     dataset = dataset.map(lambda x: {"premise": x["premise"].strip()})
     dataset = dataset.map(lambda x: {"hypothesis": x["hypothesis"].strip()})
     dev_data = dataset["validation"]
     test_data = dataset["test"]
 
     prompts = []
-    for i, example in enumerate(test_data):
+    #running only on 1 input
+    for i in range(1):
+        example = test_data[i]
         k = args.ntrain
         prompt_end = format_example(premise=example["premise"], hypothesis=example["hypothesis"])
         train_prompt = gen_prompt(dev_data, k)
@@ -107,22 +107,13 @@ def main(args):
         batch_size=args.eval_batch_size,
     )
 
-    # get the metrics
-    ground_truths = [example["label"] for example in test_data]
-    predictions = [pred_index for pred_index in pred_indices]
-    metrics = {
-        "accuracy": accuracy_score(ground_truths, predictions),
-        "precision": precision_score(ground_truths, predictions, average="macro"),
-        "recall": recall_score(ground_truths, predictions, average="macro"),
-        "f1": f1_score(ground_truths, predictions, average="macro"),
-    }
-    for k, v in metrics.items():
-        print(f"{k}: {v:.4f}")
+    # save predicted labels to a file
+    predicted_labels_file = os.path.join(args.save_dir, "predicted_labels.txt")
+    with open(predicted_labels_file, "w") as f:
+        for pred_index in pred_indices:
+            f.write(choices[pred_index] + "\n")
 
-    # save results
-    with open(os.path.join(args.save_dir, "metrics.json"), "w") as fout:
-        json.dump(metrics, fout, indent=4)
-
+    print(f"Predicted labels saved to {predicted_labels_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

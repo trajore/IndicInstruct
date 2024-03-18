@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=http://127.0.0.1:8000/dashboard/
+HostUrl=http://127.0.0.1:8000/download_script/23/
