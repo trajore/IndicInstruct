@@ -82,7 +82,7 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    dataset = load_dataset("Thanmay/indic-wikibio-hi", args.lang)
+    dataset = load_dataset("ai4bharat/IndicWikiBio", args.lang)
     for split in dataset.column_names:
         column_names = dataset[split].column_names
         itv2_column_names = []

@@ -10,7 +10,7 @@ model_name_or_path="meta-llama/Llama-2-7b-chat-hf"
 echo "evaluating llama-2 7b chat on arc easy..."
 
 # zero-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
     --subset "easy" \
@@ -22,7 +22,7 @@ python3 -m eval.arc.run_english_eval \
     --chat_formatting_function eval.templates.create_prompt_with_llama2_chat_format
 
 # 5-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
     --subset "easy" \
@@ -39,7 +39,7 @@ model_name_or_path="meta-llama/Llama-2-7b-hf"
 echo "evaluating llama-2 7b base on arc easy"
 
 # zero-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
     --subset "easy" \
@@ -49,7 +49,7 @@ python3 -m eval.arc.run_english_eval \
     --eval_batch_size 4 \
 
 # 5-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
     --subset "easy" \
@@ -67,7 +67,7 @@ model_name_or_path="meta-llama/Llama-2-7b-chat-hf"
 echo "evaluating llama-2 7b chat on arc challenge..."
 
 # zero-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
     --subset "challenge" \
@@ -79,7 +79,7 @@ python3 -m eval.arc.run_english_eval \
     --chat_formatting_function eval.templates.create_prompt_with_llama2_chat_format
 
 # 5-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
     --subset "challenge" \
@@ -96,7 +96,7 @@ python3 -m eval.arc.run_english_eval \
 echo "evaluating llama-2 7b base on arc challenge..."
 
 # zero-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 0 \
     --dataset "ai2_arc" \
     --subset "challenge" \
@@ -106,7 +106,7 @@ python3 -m eval.arc.run_english_eval \
     --eval_batch_size 4 \
 
 # 5-shot
-python3 -m eval.arc.run_english_eval \
+python3 -m eval.arc.run_multi_turn_eval \
     --ntrain 5 \
     --dataset "ai2_arc" \
     --subset "challenge" \
