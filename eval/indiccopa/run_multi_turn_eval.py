@@ -85,8 +85,8 @@ def main(args):
     prompts = []
     for i, example in enumerate(test_data):
         dev_data = test_data.filter(lambda x: x["premise"] != example["premise"]).shuffle(args.seed)
-        train_prompt = gen_prompt(dev_data, k, chat_formatting_function)
         k = args.ntrain
+        train_prompt = gen_prompt(dev_data, k)
         prompt_end = format_example(
             premise=example["premise"],
             choice1=example["choice1"],

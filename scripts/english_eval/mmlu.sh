@@ -11,7 +11,7 @@ model_name_or_path="meta-llama/Llama-2-7b-chat-hf"
 echo "evaluating llama-2 7b chat on mmlu ..."
 
 # zero-shot
-python3 -m eval.mmlu.run_english_eval \
+python3 -m eval.mmlu.run_multi_turn_eval \
     --ntrain 0 \
     --data_dir data/eval/mmlu \
     --save_dir "results/mmlu/llama2-7b-chat-0shot" \
@@ -23,7 +23,7 @@ python3 -m eval.mmlu.run_english_eval \
 
 
 # 5-shot
-python3 -m eval.mmlu.run_english_eval \
+python3 -m eval.mmlu.run_multi_turn_eval \
     --ntrain 5 \
     --data_dir data/eval/mmlu \
     --save_dir "results/mmlu/llama2-7b-chat-5shot" \
@@ -42,7 +42,7 @@ model_name_or_path="meta-llama/Llama-2-7b-hf"
 echo "evaluating llama-2 7b base on mmlu ..."
 
 # zero-shot
-python3 -m eval.mmlu.run_english_eval \
+python3 -m eval.mmlu.run_multi_turn_eval \
     --ntrain 0 \
     --data_dir data/eval/mmlu \
     --save_dir "results/mmlu/llama2-7b-base-0shot" \
@@ -52,7 +52,7 @@ python3 -m eval.mmlu.run_english_eval \
 
 
 # 5-shot
-python3 -m eval.mmlu.run_english_eval \
+python3 -m eval.mmlu.run_multi_turn_eval \
     --ntrain 5 \
     --data_dir data/eval/mmlu \
     --save_dir "results/mmlu/llama2-7b-chat-5shot" \

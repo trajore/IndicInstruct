@@ -11,7 +11,7 @@ model_name_or_path="meta-llama/Llama-2-7b-chat-hf"
 echo "evaluating llama-2 7b chat on boolq ..."
 
 # zero-shot
-python3 -m eval.boolq.run_english_eval \
+python3 -m eval.boolq.run_multi_turn_eval \
     --ntrain 0 \
     --save_dir "results/boolq/llama-2-7b-chat-0shot" \
     --model_name_or_path $model_name_or_path \
@@ -21,7 +21,7 @@ python3 -m eval.boolq.run_english_eval \
     --chat_formatting_function eval.templates.create_prompt_with_llama2_chat_format
 
 # 5-shot
-python3 -m eval.boolq.run_english_eval \
+python3 -m eval.boolq.run_multi_turn_eval \
     --ntrain 5 \
     --save_dir "results/boolq/llama2-7b-chat-5shot" \
     --model_name_or_path $model_name_or_path \
@@ -37,7 +37,7 @@ model_name_or_path="meta-llama/Llama-2-7b-hf"
 echo "evaluating llama-2 7b base on boolq ..."
 
 # zero-shot
-python3 -m eval.boolq.run_english_eval \
+python3 -m eval.boolq.run_multi_turn_eval \
     --ntrain 0 \
     --save_dir "results/boolq/llama-2-7b-base-0shot" \
     --model_name_or_path $model_name_or_path \
@@ -45,7 +45,7 @@ python3 -m eval.boolq.run_english_eval \
     --eval_batch_size 4 \
 
 # 5-shot
-python3 -m eval.boolq.run_english_eval \
+python3 -m eval.boolq.run_multi_turn_eval \
     --ntrain 5 \
     --save_dir "results/boolq/llama2-7b-base-5shot" \
     --model_name_or_path $model_name_or_path \

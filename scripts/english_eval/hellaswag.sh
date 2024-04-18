@@ -11,7 +11,7 @@ model_name_or_path="meta-llama/Llama-2-7b-chat-hf"
 echo "evaluating llama-2 7b chat on hellaswag ..."
 
 # zero-shot
-python3 -m eval.hellaswag.run_english_eval \
+python3 -m eval.hellaswag.run_multi_turn_eval \
     --ntrain 0 \
     --save_dir "results/hellaswag/llama2-7b-chat-0shot" \
     --model_name_or_path $model_name_or_path \
@@ -22,7 +22,7 @@ python3 -m eval.hellaswag.run_english_eval \
 
 
 # 5-shot
-python3 -m eval.hellaswag.run_english_eval \
+python3 -m eval.hellaswag.run_multi_turn_eval \
     --ntrain 5 \
     --save_dir "results/hellaswag/llama2-7b-chat-5shot" \
     --model_name_or_path $model_name_or_path \
@@ -38,7 +38,7 @@ model_name_or_path="meta-llama/Llama-2-7b-hf"
 echo "evaluating llama-2 7b base on hellaswag ..."
 
 # zero-shot
-python3 -m eval.hellaswag.run_english_eval \
+python3 -m eval.hellaswag.run_multi_turn_eval \
     --ntrain 0 \
     --save_dir "results/hellaswag/llama2-7b-base-0shot" \
     --model_name_or_path $model_name_or_path \
@@ -47,7 +47,7 @@ python3 -m eval.hellaswag.run_english_eval \
 
 
 # 5-shot
-python3 -m eval.hellaswag.run_english_eval \
+python3 -m eval.hellaswag.run_multi_turn_eval \
     --ntrain 5 \
     --save_dir "results/hellaswag/llama2-7b-base-5shot" \
     --model_name_or_path $model_name_or_path \

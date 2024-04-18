@@ -86,8 +86,8 @@ def main(args):
         else:
             prompt, p_template, q_template, a_template = templates["with_context"]
 
+        train_prompt = [{"role":"system", "content":prompt}]
         if k > 0:
-            train_prompt = [{"role":"system", "content":prompt}]
             exemplars = dev_data.select(range(k))
             for dev_example in exemplars:
                 answer = (

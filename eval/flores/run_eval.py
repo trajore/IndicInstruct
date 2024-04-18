@@ -47,6 +47,31 @@ lang_map = {
     "ory_Orya": "Odia",
 }
 
+lang_map2 = {
+    'as': 'asm_Beng',
+    'bn': 'ben_Beng',
+    'bd': 'brx_Deva',
+    'do': 'doi_Deva',
+    'en': 'eng_Latn',
+    'gu': 'guj_Gujr',
+    'gom': 'gom_Deva',
+    'hi': 'hin_Deva',
+    'kas': 'kas_Arab',
+    'kn': 'kan_Knda',
+    'mai': 'mai_Deva',
+    'mr': 'mar_Deva',
+    'mni': 'mni_Mtei',
+    'ne': 'npi_Deva',
+    'or': 'ory_Orya',
+    'pa': 'pan_Guru',
+    'sa': 'san_Deva',
+    'sat': 'sat_Olck',
+    'sd': 'snd_Deva',
+    'ta': 'tam_Taml',
+    'te': 'tel_Telu',
+    'ur': 'urd_Arab'
+}
+
 
 def format_example(src_text, src_lang, tgt_lang, tgt_text=None):
     prompt = f"{lang_map[src_lang]}: {src_text}"
@@ -72,6 +97,11 @@ def gen_prompt(dev_data, src_lang, tgt_lang, k=-1):
 
 def main(args):
     random.seed(args.seed)
+    
+    if args.src_lang not in lang_map.keys() and args.src_lang in lang_map2.keys():
+        args.src_lang = lang_map2[args.src_lang]
+    if args.tgt_lang not in lang_map.keys() and args.tgt_lang in lang_map2.keys():
+        args.tgt_lang = lang_map2[args.tgt_lang]
 
     if args.model_name_or_path:
         print("Loading model and tokenizer...")
@@ -188,13 +218,13 @@ if __name__ == "__main__":
         "--src_lang",
         type=str,
         default="eng_Latn",
-        choices=list(lang_map.keys()),
+        choices=list(lang_map.keys())+list(lang_map2.keys()),
     )
     parser.add_argument(
         "--tgt_lang",
         type=str,
         default="hin_Deva",
-        choices=list(lang_map.keys()),
+        choices=list(lang_map.keys())+list(lang_map2.keys()),
     )
     parser.add_argument("--save_dir", type=str, default="results/flores/llama-7B/")
     parser.add_argument(
