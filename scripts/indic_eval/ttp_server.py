@@ -1,6 +1,6 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import ssl
-import os, subprocess
+import os, subprocess,re
 from urllib.parse import parse_qs
 
 # Define the directory where files will be stored
@@ -16,16 +16,45 @@ class RequestHandler(BaseHTTPRequestHandler):
         post_data = self.rfile.read(content_length)
         # Convert the raw data to a string
         post_data = post_data.decode('utf-8')
-        
+        boundary = re.findall(r'--(.*?)\r\n', post_data)[0]
+        parts = post_data.split('--' + boundary)[1:-1]
+
+        # Initialize an empty dictionary to store the parsed data
+        parsed_data = {}
+
+        # Parse each part and extract the field name and value
+        for part in parts:
+            # Extract field name
+            field_match = re.search(r'Content-Disposition: form-data; name="(.*?)"', part)
+            if field_match:
+                field_name = field_match.group(1)
+                
+                # Extract field value
+                value_match = re.search(r'\r\n\r\n(.*?)\r\n', part, re.DOTALL)
+                if value_match:
+                    field_value = value_match.group(1)
+                    
+                    # Add the field name and value to the parsed data dictionary
+                    parsed_data[field_name] = field_value
+
+        # Print the parsed data
+        print(parsed_data)
+        modelID = parsed_data['modelID']
+        modelName = parsed_data['modelName']
+        datasetID = parsed_data['datasetID']
+        datasetName = parsed_data['datasetName']
+        verification_code = parsed_data['verification_code']
+
+
 
 
         # Create the upload directory if it doesn't exist
         os.makedirs(UPLOAD_DIR, exist_ok=True)
 
         # Save the uploaded files
-        ca_cert_file = form_data.get('ca_cert', [''])[0]
-        server_cert_file = form_data.get('server_cert', [''])[0]
-        server_key_file = form_data.get('server_key', [''])[0]
+        ca_cert_file = parsed_data['ca_cert']
+        server_cert_file = parsed_data['server_cert']
+        server_key_file = parsed_data['server_key']
 
         ca_cert_path = os.path.join(UPLOAD_DIR, 'ca_cert.pem')
         server_cert_path = os.path.join(UPLOAD_DIR, 'server_cert.pem')
@@ -49,7 +78,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         # Call the function to run the Bash script
         evaluation_file_path = "./indicxnli.sh"
         print(modelID,modelName,datasetID,datasetName,evaluation_file_path, verification_code, ca_cert_path, server_cert_path, server_key_path)
-        #run_bash_script(modelID, modelName, datasetID, datasetName, evaluation_file_path, verification_code, ca_cert_path, server_cert_path, server_key_path)
+        run_bash_script(modelID, modelName, datasetID, datasetName, evaluation_file_path, verification_code, ca_cert_path, server_cert_path, server_key_path)
 
 def run_bash_script(modelID,modelName,datasetID,datasetName,evaluation_file_path, verification_code, ca_cert_path, server_cert_path, server_key_path):
     # Command to execute the Bash script
