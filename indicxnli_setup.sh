@@ -9,9 +9,10 @@ cd /home/
 export PYTHONPATH=$PWD:$PYTHONPATH
 pip install -r requirements.txt
 #cd scripts && bash prepare_eval_data.sh
-cd scripts
-cd indic_eval
+# cd scripts
+# cd indic_eval
 #git clone https://huggingface.co/datasets/Divyanshu/indicxnli
 export HF_HOME=$PWD
 export TRANSFORMERS_CACHE=$PWD
-bash ./indicxnli.sh
+# bash ./indicxnli.sh
+time python3 bertbase.py
