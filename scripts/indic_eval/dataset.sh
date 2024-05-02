@@ -6,12 +6,12 @@ if [ "$#" -ne 4 ]; then
 fi
 
 # Extract arguments
-folder_path=$1 
+folder_path=$1
 ip_address=$2
 port=$3
 path_to_test=$4
 
-# Create a temporary directory to store the archive with read write permissions
+# Create a temporary directory to store the archive
 temp_dir=$(mktemp -d)
 wait $!
 archive_name="data1.tar.gz"
@@ -44,7 +44,7 @@ def send_file(file_path, server_address, server_port, ca):
         # Wrap the socket in TLS encryption
         context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         context.load_verify_locations(cafile=ca)
-        context.verify_mode = ssl.CERT_REQUIRED
+        context.verify_mode = ssl.CERT_REQUIRED 
         context.check_hostname = False
 
         with context.wrap_socket(s, server_side=False, server_hostname=server_address) as ssl_socket:
@@ -130,10 +130,10 @@ wait $!
 echo "Model accuracy tests completed successfully."
 
 log_file="output_file.log"
-model_id=8
-model_name="Airavata"
+model_id=11
+model_name="Bert"
 owner_name="user1"
-dataset_id=5
+dataset_id=7
 
 # Generate Python script
 python_script=$(cat << END
@@ -193,8 +193,8 @@ def main():
     print("Recall:", recall)
     print("F1 Score:", f1_score)
      # Send metrics to update_leaderboard view
-    auth_token = 'eea84q6ntoolckzmrhpi2vbtn3tlnv0s'
-    csrf_token = 'BiRTOajNTdwd5SbBfXbaMvKwR6D5O7PY'
+    auth_token = 'zxajnply1gkbpznixmyelkanqhokx12w'
+    csrf_token = 'hMNjZootaF9zJDni3MRJPI5bY6TmIaaK'
     payload = {
         'model_id': model_id,
         'dataset_id': dataset_id,
@@ -224,5 +224,5 @@ python_script_file="/tmp/metrics_script.py"
 echo "$python_script" > "$python_script_file"
 
 # Execute Python script
-python3.10 "$python_script_file" "$@"
+python3 "$python_script_file" "$@"
 
