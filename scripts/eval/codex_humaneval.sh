@@ -3,14 +3,13 @@ export CUDA_VISIBLE_DEVICES=0
 # Evaluating llama 7B model using temperature 0.1 to get the pass@1 score
 python -m eval.codex_humaneval.run_eval \
     --data_file /home/scripts/data/eval/codex_humaneval/HumanEval.jsonl.gz \
-    --eval_pass_at_ks 1 5 10 20 \
-    --unbiased_sampling_size_n 20 \
+    --eval_pass_at_ks 1 \
+    --unbiased_sampling_size_n 1 \
     --temperature 0.1 \
     --save_dir /home/results/codex_humaneval/llama_7B_temp_0_1 \
     --model '/home/model_files/meta-llama/Llama-2-7b-hf' \
     --tokenizer '/home/model_files/meta-llama/Llama-2-7b-hf' \
-    --eval_batch_size 8
-    --load_in_8bit
+    --eval_batch_size 16
 
 
 # Evaluating llama 7B model using temperature 0.8 to get the pass@10 score
