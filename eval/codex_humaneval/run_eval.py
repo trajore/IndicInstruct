@@ -3,7 +3,6 @@ import os
 import json
 import random
 import torch
-import vllm
 from eval.utils import (
     generate_completions, 
     load_hf_lm_and_tokenizer, 
@@ -41,25 +40,7 @@ def main(args):
         
     if args.model_name_or_path:
         if args.use_vllm:
-            model = vllm.LLM(
-                model=args.model_name_or_path,
-                tokenizer=args.tokenizer_name_or_path if args.tokenizer_name_or_path else args.model_name_or_path,
-                tokenizer_mode="slow" if args.use_slow_tokenizer else "auto",
-                tensor_parallel_size=torch.cuda.device_count(),
-            )
-            sampling_params = vllm.SamplingParams(
-                n=args.unbiased_sampling_size_n,
-                temperature=args.temperature, 
-                top_p=0.95,
-                max_tokens=512,
-                stop=["\nclass", "\ndef", "\n#", "\nif", "\nprint"]
-            )
-            generations = model.generate(prompts, sampling_params)
-            outputs = [output.text for it in generations for output in it.outputs]
-            # Note: vllm will ignore the first space in the generation, because the processing of _token.
-            # This is not a problem for chat, but for codex, we need to keep the first space.
-            # So, we manually add a space at the beginning.
-            outputs = [" " + output for output in outputs]
+            pass
         else:
             print("Loading model and tokenizer...")
             model, tokenizer = load_hf_lm_and_tokenizer(

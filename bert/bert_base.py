@@ -7,7 +7,9 @@ from transformers import BertTokenizer, BertModel
 from datasets import load_dataset
 import time
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
+model_path="./model_files/google-bert/bert-base-cased"
+dataset_path=""
+tokenizer = BertTokenizer.from_pretrained(model_path)
 
 sst2_train = load_dataset("sst2", split="train")
 sst2_val = load_dataset("sst2", split="validation")
@@ -57,7 +59,7 @@ class BertClassifier(nn.Module):
 
         super(BertClassifier, self).__init__()
 
-        self.bert = BertModel.from_pretrained("bert-base-cased")
+        self.bert = BertModel.from_pretrained(model_path)
         self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(768, num_classes)
         self.relu = nn.ReLU()
@@ -156,11 +158,7 @@ def evaluate(model, data):
     total_time = 0
 
     with torch.no_grad():
-        #do only 10 data points
         for i, (input_data, labels) in enumerate(dataloader):
-            if i >= 10:
-                break
-
             labels = labels.to(device)
             mask = input_data["attention_mask"].to(device)
             input_ids = input_data["input_ids"].squeeze(1).to(device)
@@ -175,9 +173,9 @@ def evaluate(model, data):
             predictions = outputs.argmax(dim=1)
             correct_predictions += (predictions == labels).sum().item()
 
-    accuracy = correct_predictions / min(len(data), 10)
+    accuracy = correct_predictions /len(data)
     print(f"Accuracy: {accuracy * 100:.2f}%")
-    print(f"Average Evaluation Time per Sample: {total_time / min(len(data), 10)} seconds")
+    print(f"Average Evaluation Time per Sample: {total_time /len(data)} seconds")
 
     return accuracy
 
@@ -196,7 +194,5 @@ LR = 2e-5
 #torch.save(trained_model.state_dict(), "model_sst2_finetuned.pth")
 #load the saved model
 model = BertClassifier(2)
-model.load_state_dict(torch.load("model_sst2_finetuned.pth"))
-
 # Evaluate model
 evaluate(model, sst2_val)
