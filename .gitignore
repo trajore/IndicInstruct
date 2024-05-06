@@ -182,3 +182,4 @@ scripts/indic_eval/models--sarvamai--OpenHathi-7B-Hi-v0.1-Base/snapshots/2cb5807
 scripts/indic_eval/models--sarvamai--OpenHathi-7B-Hi-v0.1-Base/snapshots/2cb5807b852028defa07c56c96a7ff5c11f8df0e/tokenizer.model
 model_sst2_finetuned.pth
 model_files/
+data/

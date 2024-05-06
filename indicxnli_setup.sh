@@ -15,5 +15,7 @@
 #export HF_HOME=$PWD
 #export TRANSFORMERS_CACHE=$PWD
 # bash ./indicxnli.sh
-pip install timm
-time python3 download_model.py 'hf_hub:timm/vgg16.tv_in1k'
+#pip install timm
+#time python3 download_model.py 'hf_hub:timm/vgg16.tv_in1k'
+#scripts/prepare_eval_data.sh
+time scripts/eval/codex_humaneval.sh

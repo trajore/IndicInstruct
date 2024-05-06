@@ -2,7 +2,7 @@
 export CUDA_VISIBLE_DEVICES=0
 # Evaluating llama 7B model using temperature 0.1 to get the pass@1 score
 python -m eval.codex_humaneval.run_eval \
-    --data_file /home/scripts/data/eval/codex_humaneval/HumanEval.jsonl.gz \
+    --data_file /home/data/eval/codex_humaneval/HumanEval.jsonl.gz \
     --eval_pass_at_ks 1 \
     --unbiased_sampling_size_n 1 \
     --temperature 0.1 \
