@@ -1,85 +1,29 @@
 #!/bin/bash
-            # Check if the number of arguments is correct
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <evaluation_file_path> <ip_address> <port> <folder_path>"
-    exit 1
-fi
+                # Check if the number of arguments is correct
+            Third_party_ip_address=127.0.0.1
+            Third_party_port=7001
+            verification_code=1234
+            model_file_path=$1
 
-# Extract arguments
-evaluation_file_path=$1
-ip_address=$2
-port=$3
-folder_path=$4
-
-echo "Connecting to dataset owner..."
-# Function to receive files
-receive_file() {
-    # Create a TCP/IP socket
-    python3 - <<END
-import socket
-import ssl
-
-def receive_file(peer_ip, peer_port, file_name, server_cert, server_key):
-    # Create a TCP/IP socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        # Bind the socket to the server address and port
-        s.bind((peer_ip, peer_port))
-        # Listen for incoming connections
-        s.listen(1)
-        print(f"Waiting for connection on {peer_ip}:{peer_port}...")
-
-        # Accept the connection
-        client_socket, client_address = s.accept()
-        print(f"Connected to {client_address}")
-
-        # Wrap the client socket in TLS encryption
-        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        context.load_cert_chain(certfile=server_cert, keyfile=server_key)
-        context.load_verify_locations(cafile="ca.crt")
-        context.verify_mode = ssl.CERT_NONE
-
-        with context.wrap_socket(client_socket, server_side=True) as ssl_socket:
-            # Receive the file data
-            with open(file_name, 'wb') as file:
-                while True:
-                    data = ssl_socket.recv(1024)
-                    if not data:
-                        break
-                    file.write(data)
-
-            print("File received successfully.")
-
-
-# Usage example
-receive_file("$ip_address", $port, 'data.tar.gz', 'server.crt', 'server.key')
-END
-}
-
-# Start receiving the dataset folder
-receive_file &
-wait $!
-
-tar -xzf data.tar.gz
-wait $!
-echo "Running model evaluation..."
-# Add your model evaluation command here
-$evaluation_file_path
-#wait $!
-rm -rf data.tar.gz
-wait $!
-# Add your command to retrieve accuracy results here
+            if [ "$#" -ne 2 ]; then
+                echo "Usage: $0 <model_file_path> <verification code>"
+                exit 1
+            fi
+            ip_address=$Third_party_ip_address
+port=$Third_party_port
+            
 # Create a temporary directory to store the archive
 temp_dir=$(mktemp -d)
-archive_name="data.tar.gz"
+wait $!
+archive_name="model.tar.gz"
 
 # Create a tar archive of the folder
 echo "Creating a tar archive of the folder..."
-tar -czf "$temp_dir/$archive_name" -C "$folder_path" .
-
-# Script section for dataset transfer
-echo "Transferring predicted label folder..."
-
-# Use openssl to transfer the tar archive over TLSv1.3 and specify the certificate and key
+tar -czf "$temp_dir/$archive_name" -C "$model_file_path" .
+wait $!
+# Script section for model transfer
+echo "Transferring model folder..."
+echo "Transferring model folder to model owner..."
 send_file(){
 
 # Use openssl to transfer the tar archive over TLSv1.3 and specify the certificate and key
@@ -121,8 +65,5 @@ END
 }
 send_file &
 wait $!
-echo "Predicted labels sent successfully."
-echo "Results will be available on the leaderboard"
-# Clean up temporary directory
-rm -rf "$temp_dir"
-
+echo "model folder transferred successfully."
+            
