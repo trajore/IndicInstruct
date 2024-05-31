@@ -6,6 +6,7 @@
 # sudo apt-get install git-lfs -y
 # git lfs install
 export PYTHONPATH=$PYTHONPATH:$PWD
+pip install packaging
 pip install torch
 pip install -r requirements.txt
 cd scripts && bash prepare_eval_data.sh
