@@ -9,7 +9,6 @@ export PYTHONPATH=$PYTHONPATH:$PWD
 pip install torch
 pip install -r requirements.txt
 cd scripts && bash prepare_eval_data.sh
-cd scripts
 cd indic_eval
 git clone https://huggingface.co/datasets/Divyanshu/indicxnli
 export HF_HOME=$PWD
