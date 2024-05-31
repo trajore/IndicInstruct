@@ -5,15 +5,15 @@
 # sudo apt-get -y install cuda-toolkit-12-4p
 # sudo apt-get install git-lfs -y
 # git lfs install
-#cd /home/
-#export PYTHONPATH=$PWD:$PYTHONPATH
-#pip install -r requirements.txt
-#cd scripts && bash prepare_eval_data.sh
-# cd scripts
-# cd indic_eval
-#git clone https://huggingface.co/datasets/Divyanshu/indicxnli
-#export HF_HOME=$PWD
-#export TRANSFORMERS_CACHE=$PWD
+cd /home/
+export PYTHONPATH=$PWD:$PYTHONPATH
+pip install -r requirements.txt
+cd scripts && bash prepare_eval_data.sh
+cd scripts
+cd indic_eval
+git clone https://huggingface.co/datasets/Divyanshu/indicxnli
+export HF_HOME=$PWD
+export TRANSFORMERS_CACHE=$PWD
 # bash ./indicxnli.sh
 #pip install timm
 #time python3 download_model.py 'hf_hub:timm/vgg16.tv_in1k'
