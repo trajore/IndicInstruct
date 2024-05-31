@@ -51,9 +51,9 @@ def main(args):
 
     chat_formatting_function = dynamic_import_function(args.chat_formatting_function) if args.use_chat_format else None
 
-    #dataset = load_dataset("Divyanshu/indicxnli", f"{args.lang}")
-    new_dataset_dir="./indicxnli"
-    dataset = load_dataset(new_dataset_dir,"hi")
+    dataset = load_dataset("Divyanshu/indicxnli", "hi")
+    # new_dataset_dir="./indicxnli"
+    # dataset = load_dataset(new_dataset_dir,"hi")
     dataset = dataset.map(lambda x: {"premise": x["premise"].strip()})
     dataset = dataset.map(lambda x: {"hypothesis": x["hypothesis"].strip()})
     dev_data = dataset["validation"]
