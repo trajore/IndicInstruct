@@ -5,7 +5,8 @@
 # sudo apt-get -y install cuda-toolkit-12-4p
 # sudo apt-get install git-lfs -y
 # git lfs install
-export PYTHONPATH=$PWD:$PYTHONPATH
+export PYTHONPATH=$PYTHONPATH:$PWD
+pip install torch
 pip install -r requirements.txt
 cd scripts && bash prepare_eval_data.sh
 cd scripts
